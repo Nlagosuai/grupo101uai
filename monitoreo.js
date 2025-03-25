@@ -3,18 +3,18 @@ async function verificarsantander(url) {
     
     try {
         const respuesta = await fetch(url, { method: 'HEAD'});
-        console.log(`santander está en línea ✅`);
+        console.log(`santander esta en linea ✅`);
     } catch (error) {
-        console.log(`santander está caída ❌`);
+        console.log(`santander esti caida ❌`);
     }
 }
 
 async function verificarchile(url) {
     try {
         const respuesta = await fetch(url, { method: 'HEAD' });
-        console.log(`Banco de Chile está en línea ✅`);
+        console.log(`Banco de Chile esta en linea ✅`);
     } catch (error) {
-        console.log(`Banco de Chile está caída ❌`);
+        console.log(`Banco de Chile esta caida ❌`);
     }
 }
 
@@ -22,9 +22,9 @@ async function verificarbci(url) {
     
     try {
         const respuesta = await fetch(url, { method: 'HEAD'});
-        console.log(`bci está en línea ✅`);
+        console.log(`bci esta en linea ✅`);
     } catch (error) {
-        console.log(`bci está caída ❌`);
+        console.log(`bci esta caida ❌`);
     }
 }
 
@@ -32,9 +32,9 @@ async function verificarestado(url) {
     
     try {
         const respuesta = await fetch(url, { method: 'HEAD'});
-        console.log(`banco estado está en línea ✅`);
+        console.log(`banco estado esta en linea ✅`);
     } catch (error) {
-        console.log(`banco estado está caída ❌`);
+        console.log(`banco estado esta caida ❌`);
     }
 }
 
