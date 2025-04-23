@@ -1,6 +1,28 @@
-import { Application, Router, Context } from "https://deno.land/x/oak@v11.1.0/mod.ts";
+import { Application, Router, Context, RouterMiddleware } from "https://deno.land/x/oak@v11.1.0/mod.ts";
+// cd C:\Nicolas\Vscode codes\grupo101uai-1
+// deno run --allow-net --allow-write --allow-read server.ts
 
-// Función para verificar el estado de los bancos
+// Utilidad para guardar y cargar reseñas desde un archivo
+const DB_FILE = "./reviews.json";
+
+async function guardarReseñas(reseñas: Reseña[]) {
+    try {
+        await Deno.writeTextFile(DB_FILE, JSON.stringify(reseñas, null, 2));
+    } catch (error) {
+        console.error("Error al guardar reseñas:", error);
+    }
+}
+
+async function cargarReseñas(): Promise<Reseña[]> {
+    try {
+        const contenido = await Deno.readTextFile(DB_FILE);
+        return JSON.parse(contenido);
+    } catch (error) {
+        // Si el archivo no existe o hay error, devolver array vacío
+        return [];
+    }
+}
+
 async function verificarBanco(nombre, url) {
     try {
         const respuesta = await fetch(url, { method: 'HEAD' });
@@ -80,18 +102,392 @@ interface Reseña {
     categorías: string[];
 }
 
-// Almacenamiento de reseñas (en memoria por ahora)
-const reseñas: Reseña[] = [];
+// Almacenamiento de reseñas (cargar desde archivo)
+let reseñas: Reseña[] = [];
 
 // Configuración de la aplicación y el router
 const app = new Application();
 const router = new Router();
+
+// Middleware para capturar errores en todas las rutas
+app.use(async (ctx, next) => {
+    try {
+        await next();
+    } catch (err) {
+        console.log("ERROR EN RUTA:", ctx.request.url.pathname);
+        console.log(err);
+        
+        ctx.response.status = 500;
+        ctx.response.body = `
+        <html>
+            <head>
+                <title>Error - Monitor de Bancos</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+                <style>
+                    :root {
+                        --color-primary: #8B7355;
+                        --color-secondary: #D2B48C;
+                        --color-background: #FAF0E6;
+                        --color-text: #5C4033;
+                        --color-white: #FFFFFF;
+                        --color-error: #CD5C5C;
+                    }
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    body {
+                        font-family: 'Poppins', sans-serif;
+                        background-color: var(--color-background);
+                        color: var(--color-text);
+                        line-height: 1.6;
+                        min-height: 100vh;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 2rem;
+                    }
+                    .error-container {
+                        background-color: var(--color-white);
+                        border-radius: 15px;
+                        padding: 2rem;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                        text-align: center;
+                        max-width: 500px;
+                    }
+                    .error-icon {
+                        font-size: 4rem;
+                        color: var(--color-error);
+                        margin-bottom: 1rem;
+                    }
+                    h1 {
+                        color: var(--color-primary);
+                        margin-bottom: 1rem;
+                    }
+                    .button {
+                        display: inline-block;
+                        padding: 0.8rem 1.5rem;
+                        background-color: var(--color-primary);
+                        color: var(--color-white);
+                        text-decoration: none;
+                        border-radius: 8px;
+                        margin-top: 1.5rem;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error-container">
+                    <div class="error-icon">⚠️</div>
+                    <h1>Oops! Ha ocurrido un error</h1>
+                    <p>Estamos trabajando para solucionarlo. Por favor, intenta nuevamente.</p>
+                    <a href="/login" class="button">Volver al inicio</a>
+                </div>
+            </body>
+        </html>
+        `;
+    }
+});
+
+// Middleware de autenticación con cookies
+app.use(async (ctx, next) => {
+    // Rutas que no requieren autenticación
+    const publicPaths = ['/login', '/api/login'];
+    
+    // Verificar si la ruta actual es pública
+    if (publicPaths.includes(ctx.request.url.pathname)) {
+        return await next();
+    }
+    
+    // Verificar si está autenticado revisando la cookie
+    const cookies = ctx.request.headers.get('cookie');
+    const isAuthenticated = cookies?.includes('authenticated=true');
+    
+    if (!isAuthenticated) {
+        // Redirigir a login si no está autenticado
+        ctx.response.redirect('/login');
+        return;
+    }
+    
+    await next();
+});
+
+// Cargar reseñas al iniciar el servidor
+(async () => {
+    reseñas = await cargarReseñas();
+    console.log(`Reseñas cargadas: ${reseñas.length}`);
+})();
 
 // Ruta para la API de estados
 router.get("/api/estados", async (ctx) => {
     const estados = await obtenerEstados();
     ctx.response.body = estados;
 });
+
+// Ruta para la página de login
+router.get("/login", async (ctx) => {
+    // Si ya está autenticado, redirigir al inicio
+    const cookies = ctx.request.headers.get('cookie');
+    const isAuthenticated = cookies?.includes('authenticated=true');
+    
+    if (isAuthenticated) {
+        ctx.response.redirect('/');
+        return;
+    }
+
+    let errorMessage = "";
+    // Obtener mensaje de error de la URL si existe
+    const url = new URL(ctx.request.url);
+    if (url.searchParams.has("error")) {
+        errorMessage = "Usuario o contraseña incorrectos. Inténtalo de nuevo.";
+    }
+
+    let htmlContent = `
+    <html>
+        <head>
+            <title>Iniciar Sesión - Monitor de Bancos</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+            <style>
+                :root {
+                    --color-primary: #8B7355;
+                    --color-secondary: #D2B48C;
+                    --color-accent: #DEB887;
+                    --color-background: #FAF0E6;
+                    --color-text: #5C4033;
+                    --color-white: #FFFFFF;
+                    --color-error: #CD5C5C;
+                }
+
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+
+                body {
+                    font-family: 'Poppins', sans-serif;
+                    background-color: var(--color-background);
+                    color: var(--color-text);
+                    line-height: 1.6;
+                    min-height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 1rem;
+                }
+
+                .login-container {
+                    width: 100%;
+                    max-width: 400px;
+                    background-color: var(--color-white);
+                    border-radius: 15px;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                    padding: 2.5rem;
+                }
+
+                .login-header {
+                    text-align: center;
+                    margin-bottom: 2rem;
+                }
+
+                .login-header h1 {
+                    color: var(--color-primary);
+                    font-size: 2rem;
+                    margin-bottom: 1rem;
+                }
+
+                .login-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                }
+
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+
+                .form-group label {
+                    font-weight: 500;
+                    color: var(--color-text);
+                }
+
+                .form-control {
+                    width: 100%;
+                    padding: 1rem;
+                    border: 2px solid var(--color-secondary);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 1rem;
+                    transition: border-color 0.3s;
+                }
+
+                .form-control:focus {
+                    outline: none;
+                    border-color: var(--color-primary);
+                }
+
+                .button {
+                    display: inline-block;
+                    width: 100%;
+                    padding: 1rem;
+                    background-color: var(--color-primary);
+                    color: var(--color-white);
+                    text-decoration: none;
+                    border-radius: 8px;
+                    transition: background-color 0.3s;
+                    border: none;
+                    cursor: pointer;
+                    font-weight: 500;
+                    text-align: center;
+                    font-size: 1rem;
+                }
+
+                .button:hover {
+                    background-color: var(--color-secondary);
+                }
+
+                .error-message {
+                    color: var(--color-error);
+                    text-align: center;
+                    margin-top: 1rem;
+                    font-weight: 500;
+                }
+
+                .bank-icon {
+                    font-size: 3rem;
+                    color: var(--color-primary);
+                    margin-bottom: 1rem;
+                }
+
+                @media (max-width: 500px) {
+                    .login-container {
+                        padding: 1.5rem;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <main class="login-container">
+                <div class="login-header">
+                    <div class="bank-icon">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <h1>Monitor Bancario</h1>
+                    <p>Inicia sesión para acceder al sistema</p>
+                </div>
+
+                <form class="login-form" action="/api/login" method="POST">
+                    <div class="form-group">
+                        <label for="username">Usuario</label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            class="form-control" 
+                            required
+                            autocomplete="username"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            class="form-control" 
+                            required
+                            autocomplete="current-password"
+                        >
+                    </div>
+
+                    <button type="submit" class="button">Iniciar Sesión</button>
+                    
+                    ${errorMessage ? `<div class="error-message">${errorMessage}</div>` : ''}
+                </form>
+            </main>
+        </body>
+    </html>
+    `;
+    ctx.response.body = htmlContent;
+});
+
+// API para procesar el login
+router.post("/api/login", async (ctx) => {
+    const body = await ctx.request.body();
+    let formData;
+    
+    if (body.type === "form") {
+        formData = await body.value;
+    } else {
+        ctx.response.status = 400;
+        ctx.response.body = "Formato de solicitud no válido";
+        return;
+    }
+    
+    const username = formData.get("username");
+    const password = formData.get("password");
+    
+    // Verificar credenciales (hardcoded como pidió el usuario)
+    if (username === "admin" && password === "admin") {
+        // Establecer cookie de autenticación
+        ctx.response.headers.set("Set-Cookie", "authenticated=true; Path=/; HttpOnly");
+        ctx.response.redirect('/');
+    } else {
+        // Redirigir con error
+        ctx.response.redirect('/login?error=1');
+    }
+});
+
+// Ruta para cerrar sesión
+router.get("/logout", async (ctx) => {
+    // Invalidar cookie
+    ctx.response.headers.set("Set-Cookie", "authenticated=false; Path=/; HttpOnly; Max-Age=0");
+    ctx.response.redirect('/login');
+});
+
+// Función auxiliar para renderizar la barra de navegación
+function renderNavbar() {
+    return `
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="logo">Monitor de Bancos</a>
+            
+            <div class="hamburger-menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+            
+            <div class="nav-links">
+                <a href="/">Inicio</a>
+                <a href="/estados">Estados</a>
+                <a href="/reseñas">Reseñas</a>
+                <a href="/reportar">Reportar</a>
+                <a href="/estadisticas">Estadísticas</a>
+                <a href="/logout" class="logout-link">Cerrar Sesión</a>
+            </div>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const hamburger = document.querySelector('.hamburger-menu');
+                const navLinks = document.querySelector('.nav-links');
+                
+                hamburger.addEventListener('click', function() {
+                    navLinks.classList.toggle('mobile-active');
+                    hamburger.classList.toggle('active');
+                });
+            });
+        </script>
+    </nav>
+    `;
+}
 
 // Ruta para la página de estadísticas
 router.get("/estadisticas", async (ctx) => {
@@ -159,596 +555,34 @@ router.get("/estadisticas", async (ctx) => {
                     text-decoration: none;
                 }
 
-                .nav-links {
-                    display: flex;
-                    gap: 2rem;
-                }
-
-                .nav-links a {
-                    text-decoration: none;
-                    color: var(--color-text);
-                    font-weight: 500;
-                    transition: color 0.3s;
-                }
-
-                .nav-links a:hover {
-                    color: var(--color-primary);
-                }
-
-                .main-content {
-                    margin-top: 100px;
-                    padding: 2rem;
-                    max-width: 1200px;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-
-                .stats-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                    gap: 2rem;
-                    margin-top: 2rem;
-                }
-
-                .stat-card {
-                    background-color: var(--color-white);
-                    border-radius: 15px;
-                    padding: 2rem;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-                    text-align: center;
-                    transition: transform 0.3s;
-                }
-
-                .stat-card:hover {
-                    transform: translateY(-5px);
-                }
-
-                .stat-icon {
-                    font-size: 2.5rem;
-                    margin-bottom: 1rem;
-                }
-
-                .stat-number {
-                    font-size: 2.5rem;
-                    font-weight: 600;
-                    color: var(--color-primary);
-                    margin-bottom: 0.5rem;
-                }
-
-                .stat-label {
-                    color: var(--color-text);
-                    font-size: 1.1rem;
-                }
-
-                .chart-container {
-                    background-color: var(--color-white);
-                    border-radius: 15px;
-                    padding: 2rem;
-                    margin-top: 2rem;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-                }
-
-                .progress-bar {
-                    width: 100%;
-                    height: 30px;
-                    background-color: var(--color-background);
-                    border-radius: 15px;
-                    overflow: hidden;
-                    margin: 1rem 0;
-                }
-
-                .progress-fill {
-                    height: 100%;
-                    background-color: var(--color-success);
-                    transition: width 0.5s ease-in-out;
-                }
-
-                .button {
-                    display: inline-block;
-                    padding: 0.8rem 1.5rem;
-                    background-color: var(--color-primary);
-                    color: var(--color-white);
-                    text-decoration: none;
-                    border-radius: 8px;
-                    transition: background-color 0.3s;
-                    border: none;
-                    cursor: pointer;
-                    font-weight: 500;
-                    margin-top: 1rem;
-                }
-
-                .button:hover {
-                    background-color: var(--color-secondary);
-                }
-
-                @media (max-width: 768px) {
-                    .navbar-content {
-                        flex-direction: column;
-                        gap: 1rem;
-                    }
-
-                    .nav-links {
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 1rem;
-                    }
-
-                    .main-content {
-                        margin-top: 150px;
-                        padding: 1rem;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <a href="/" class="logo">Monitor Bancario</a>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reportar">Reportar</a>
-                    </div>
-                </div>
-            </nav>
-
-            <main class="main-content">
-                <h1>Estadísticas de Disponibilidad</h1>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">📊</div>
-                        <div class="stat-number">${bancosActivos}</div>
-                        <div class="stat-label">Bancos Activos</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">⚠️</div>
-                        <div class="stat-number">${bancosInactivos}</div>
-                        <div class="stat-label">Bancos Inactivos</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📈</div>
-                        <div class="stat-number">${porcentajeActivos}%</div>
-                        <div class="stat-label">Tasa de Disponibilidad</div>
-                    </div>
-                </div>
-
-                <div class="chart-container">
-                    <h2>Estado Actual del Sistema</h2>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${porcentajeActivos}%"></div>
-                    </div>
-                    <p>Última actualización: <span id="ultima-actualizacion">${new Date().toLocaleTimeString()}</span></p>
-                    <button class="button" onclick="actualizarEstadisticas()">Actualizar Datos</button>
-                </div>
-            </main>
-
-            <script>
-                function actualizarEstadisticas() {
-                    fetch('/api/estados')
-                        .then(response => response.json())
-                        .then(datos => {
-                            // Actualizar: usar la nueva propiedad 'estado' para determinar si está activo
-                            const bancosActivos = datos.filter(banco => banco.estado === "activo").length;
-                            const bancosInactivos = datos.length - bancosActivos;
-                            const porcentajeActivos = ((bancosActivos / datos.length) * 100).toFixed(1);
-                            
-                            document.querySelector('.stat-number').textContent = bancosActivos;
-                            document.querySelectorAll('.stat-number')[1].textContent = bancosInactivos;
-                            document.querySelectorAll('.stat-number')[2].textContent = porcentajeActivos + '%';
-                            document.querySelector('.progress-fill').style.width = porcentajeActivos + '%';
-                            document.getElementById('ultima-actualizacion').textContent = new Date().toLocaleTimeString();
-                        })
-                        .catch(error => {
-                            console.error('Error al actualizar estadísticas:', error);
-                        });
-                }
-
-                // Actualizar cada 5 minutos (en lugar de cada minuto)
-                setInterval(actualizarEstadisticas, 300000);
-            </script>
-        </body>
-    </html>
-    `;
-    ctx.response.body = htmlContent;
-});
-
-// Ruta para la página principal (índice)
-router.get("/", async (ctx) => {
-    let htmlContent = `
-    <html>
-        <head>
-            <title>Monitor de Bancos</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-            <style>
-                :root {
-                    --color-primary: #8B7355;
-                    --color-secondary: #D2B48C;
-                    --color-accent: #DEB887;
-                    --color-background: #FAF0E6;
-                    --color-text: #5C4033;
-                    --color-white: #FFFFFF;
-                }
-
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-
-                body {
-                    font-family: 'Poppins', sans-serif;
-                    background-color: var(--color-background);
-                    color: var(--color-text);
-                    line-height: 1.6;
-                    position: relative;
-                    min-height: 100vh;
-                    padding-bottom: 60px; /* Espacio para el footer */
-                }
-
-                .navbar {
-                    position: fixed;
-                    top: 0;
-                    width: 100%;
-                    background-color: var(--color-white);
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                    z-index: 1000;
-                    padding: 1rem 2rem;
-                }
-
-                .navbar-content {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    display: flex;
+                .hamburger-menu {
+                    display: none;
+                    flex-direction: column;
                     justify-content: space-between;
-                    align-items: center;
-                }
-
-                .logo {
-                    font-size: 1.5rem;
-                    font-weight: 600;
-                    color: var(--color-primary);
-                }
-
-                .nav-links {
-                    display: flex;
-                    gap: 2rem;
-                }
-
-                .nav-links a {
-                    text-decoration: none;
-                    color: var(--color-text);
-                    font-weight: 500;
-                    transition: color 0.3s;
-                }
-
-                .nav-links a:hover {
-                    color: var(--color-primary);
-                }
-
-                .main-content {
-                    margin-top: 100px;
-                    padding: 2rem;
-                    max-width: 1200px;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-
-                .dashboard {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                    gap: 2rem;
-                    margin-top: 2rem;
-                }
-
-                .card {
-                    background-color: var(--color-white);
-                    border-radius: 15px;
-                    padding: 2rem;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-                    transition: transform 0.3s, box-shadow 0.3s;
-                }
-
-                .card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-                }
-
-                .card-header {
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 1.5rem;
-                }
-
-                .card-icon {
-                    width: 50px;
-                    height: 50px;
-                    margin-right: 1rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background-color: var(--color-accent);
-                    border-radius: 12px;
-                    font-size: 1.5rem;
-                    color: var(--color-white);
-                }
-
-                .card-title {
-                    font-size: 1.25rem;
-                    color: var(--color-primary);
-                    margin-bottom: 0.5rem;
-                }
-
-                .button {
-                    display: inline-block;
-                    padding: 0.8rem 1.5rem;
-                    background-color: var(--color-primary);
-                    color: var(--color-white);
-                    text-decoration: none;
-                    border-radius: 8px;
-                    transition: background-color 0.3s;
-                    border: none;
+                    width: 30px;
+                    height: 21px;
                     cursor: pointer;
-                    font-weight: 500;
+                    z-index: 100;
                 }
 
-                .button:hover {
-                    background-color: var(--color-secondary);
-                }
-
-                .stats {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 1rem;
-                    margin-top: 2rem;
-                }
-
-                .stat-card {
-                    background-color: var(--color-white);
-                    padding: 1.5rem;
-                    border-radius: 12px;
-                    text-align: center;
-                }
-
-                .stat-number {
-                    font-size: 2rem;
-                    font-weight: 600;
-                    color: var(--color-primary);
-                }
-
-                .stat-label {
-                    color: var(--color-text);
-                    font-size: 0.9rem;
-                    margin-top: 0.5rem;
-                }
-
-                /* Estilos para el footer */
-                .footer {
-                    position: absolute;
-                    bottom: 0;
+                .bar {
+                    height: 3px;
                     width: 100%;
-                    background-color: var(--color-white);
-                    padding: 1rem 0;
-                    text-align: center;
-                    font-size: 0.8rem;
-                    color: var(--color-text);
-                    border-top: 1px solid var(--color-secondary);
-                    opacity: 0.9;
+                    background-color: var(--color-primary);
+                    border-radius: 10px;
+                    transition: all 0.3s ease-in-out;
                 }
 
-                .footer p {
-                    margin: 0;
+                .hamburger-menu.active .bar:nth-child(1) {
+                    transform: translateY(9px) rotate(45deg);
                 }
 
-                .contributors {
-                    font-weight: 500;
+                .hamburger-menu.active .bar:nth-child(2) {
+                    opacity: 0;
                 }
 
-                @media (max-width: 768px) {
-                    .navbar-content {
-                        flex-direction: column;
-                        gap: 1rem;
-                    }
-
-                    .nav-links {
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 1rem;
-                    }
-
-                    .main-content {
-                        margin-top: 150px;
-                    }
-
-                    .footer {
-                        position: relative;
-                        margin-top: 2rem;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <div class="logo">Monitor Bancario</div>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reportar">Reportar</a>
-                    </div>
-                </div>
-            </nav>
-
-            <main class="main-content">
-                <h1>Panel de Control Bancario</h1>
-                
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="stat-number">8</div>
-                        <div class="stat-label">Bancos Monitoreados</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="bancosActivos">--</div>
-                        <div class="stat-label">Bancos Activos</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="ultimaActualizacion">--</div>
-                        <div class="stat-label">Última Actualización</div>
-                    </div>
-                </div>
-
-                <div class="dashboard">
-                <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon">
-                                <i class="fas fa-university"></i>
-                </div>
-                            <div>
-                                <h2 class="card-title">Estado de Bancos</h2>
-                                <p>Monitoreo en tiempo real</p>
-                            </div>
-                        </div>
-                        <a href="/estados" class="button">Ver Estados</a>
-                    </div>
-
-                <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon">
-                                <i class="fas fa-chart-line"></i>
-                </div>
-                            <div>
-                                <h2 class="card-title">Estadísticas</h2>
-                                <p>Análisis de disponibilidad</p>
-            </div>
-                        </div>
-                        <a href="/estadisticas" class="button">Ver Estadísticas</a>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-icon">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div>
-                                <h2 class="card-title">Reportar Problema</h2>
-                                <p>Informar incidencias</p>
-                            </div>
-                        </div>
-                        <a href="/reportar" class="button">Reportar</a>
-                    </div>
-                </div>
-            </main>
-
-            <footer class="footer">
-                <p>Monitor Bancario © 2023</p>
-                <p>Desarrollado por <span class="contributors">Ramiro Anguita</span> y <span class="contributors">Nicolas Lagos</span></p>
-            </footer>
-
-            <script>
-                // Actualizar estadísticas
-                async function actualizarEstadisticas() {
-                    const response = await fetch('/api/estados');
-                    const datos = await response.json();
-                    // Actualizar: usar la nueva propiedad 'estado' para determinar si está activo
-                    const bancosActivos = datos.filter(banco => banco.estado === "activo").length;
-                    document.getElementById('bancosActivos').textContent = bancosActivos;
-                    document.getElementById('ultimaActualizacion').textContent = new Date().toLocaleTimeString();
-                }
-
-                // Actualizar cada 5 minutos (en lugar de cada 60 segundos)
-                setInterval(actualizarEstadisticas, 300000);
-                actualizarEstadisticas();
-            </script>
-        </body>
-    </html>
-    `;
-    ctx.response.body = htmlContent;
-});
-
-// Ruta para mostrar los estados de los bancos
-router.get("/estados", async (ctx) => {
-    const estados = await obtenerEstados();
-    
-    // Calcular promedios de calificación por banco
-    const promediosCalificaciones = {};
-    bancos.forEach(banco => {
-        const reseñasBanco = reseñas.filter(r => r.banco === banco.nombre);
-        if (reseñasBanco.length > 0) {
-            const total = reseñasBanco.reduce((sum, r) => sum + parseInt(r.calificación), 0);
-            promediosCalificaciones[banco.nombre] = {
-                promedio: (total / reseñasBanco.length).toFixed(1),
-                cantidad: reseñasBanco.length
-            };
-        } else {
-            promediosCalificaciones[banco.nombre] = {
-                promedio: "0.0",
-                cantidad: 0
-            };
-        }
-    });
-    
-    let htmlContent = `
-    <html>
-        <head>
-            <title>Estado de los Bancos</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-            <style>
-                :root {
-                    --color-primary: #8B7355;
-                    --color-secondary: #D2B48C;
-                    --color-accent: #DEB887;
-                    --color-background: #FAF0E6;
-                    --color-text: #5C4033;
-                    --color-white: #FFFFFF;
-                    --color-success: #2E8B57;
-                    --color-error: #CD5C5C;
-                    --color-warning: #DAA520;
-                    --color-star: #FFD700;
-                }
-
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-
-                body {
-                    font-family: 'Poppins', sans-serif;
-                    background-color: var(--color-background);
-                    color: var(--color-text);
-                    line-height: 1.6;
-                    min-height: 100vh;
-                }
-
-                .navbar {
-                    position: fixed;
-                    top: 0;
-                    width: 100%;
-                    background-color: var(--color-white);
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                    z-index: 1000;
-                    padding: 1rem 2rem;
-                }
-
-                .navbar-content {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-
-                .logo {
-                    font-size: 1.5rem;
-                    font-weight: 600;
-                    color: var(--color-primary);
-                    text-decoration: none;
+                .hamburger-menu.active .bar:nth-child(3) {
+                    transform: translateY(-9px) rotate(-45deg);
                 }
 
                 .nav-links {
@@ -917,41 +751,450 @@ router.get("/estados", async (ctx) => {
 
                 @media (max-width: 768px) {
                     .navbar-content {
+                        flex-direction: row;
+                        justify-content: space-between;
+                        align-items: center;
+                        position: relative;
+                    }
+
+                    .hamburger-menu {
+                        display: flex;
+                    }
+
+                    .nav-links {
+                        position: fixed;
+                        top: 0;
+                        right: -100%;
                         flex-direction: column;
-                        gap: 1rem;
+                        background-color: var(--color-white);
+                        width: 80%;
+                        max-width: 300px;
+                        height: 100vh;
+                        z-index: 99;
+                        padding: 80px 20px 20px;
+                        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+                        transition: right 0.3s ease-in-out;
+                        align-items: flex-start;
+                    }
+
+                    .nav-links.mobile-active {
+                        right: 0;
+                    }
+
+                    .main-content {
+                        margin-top: 80px;
+                        padding: 1rem;
+                    }
+
+                    .navbar-content {
+                        flex-direction: row;
                     }
 
                     .nav-links {
                         flex-direction: column;
-                        align-items: center;
-                        gap: 1rem;
+                        align-items: flex-start;
                     }
 
                     .main-content {
-                        margin-top: 150px;
+                        margin-top: 80px;
+                        padding: 1rem;
+                    }
+
+                    .bank-header {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+
+                    .buttons-container {
+                        flex-direction: column;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            ${renderNavbar()}
+
+            <main class="main-content">
+                <h1>Estadísticas de Disponibilidad</h1>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-number">${bancosActivos}</div>
+                        <div class="stat-label">Bancos Activos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-number">${bancosInactivos}</div>
+                        <div class="stat-label">Bancos Inactivos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-number">${porcentajeActivos}%</div>
+                        <div class="stat-label">Tasa de Disponibilidad</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h2>Estado Actual del Sistema</h2>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${porcentajeActivos}%"></div>
+                    </div>
+                    <p>Última actualización: <span id="ultima-actualizacion">${new Date().toLocaleTimeString()}</span></p>
+                    <button class="button" onclick="actualizarEstadisticas()">Actualizar Datos</button>
+                </div>
+            </main>
+
+            <script>
+                function actualizarEstadisticas() {
+                    fetch('/api/estados')
+                        .then(response => response.json())
+                        .then(datos => {
+                            // Actualizar: usar la nueva propiedad 'estado' para determinar si está activo
+                            const bancosActivos = datos.filter(banco => banco.estado === "activo").length;
+                            const bancosInactivos = datos.length - bancosActivos;
+                            const porcentajeActivos = ((bancosActivos / datos.length) * 100).toFixed(1);
+                            
+                            document.querySelector('.stat-number').textContent = bancosActivos;
+                            document.querySelectorAll('.stat-number')[1].textContent = bancosInactivos;
+                            document.querySelectorAll('.stat-number')[2].textContent = porcentajeActivos + '%';
+                            document.querySelector('.progress-fill').style.width = porcentajeActivos + '%';
+                            document.getElementById('ultima-actualizacion').textContent = new Date().toLocaleTimeString();
+                        })
+                        .catch(error => {
+                            console.error('Error al actualizar estadísticas:', error);
+                        });
+                }
+
+                // Actualizar cada 5 minutos (en lugar de cada minuto)
+                setInterval(actualizarEstadisticas, 300000);
+            </script>
+        </body>
+    </html>
+    `;
+    ctx.response.body = htmlContent;
+});
+
+// Ruta para la página principal (índice)
+router.get("/", async (ctx) => {
+    // Obtener los estados de los bancos
+    const estados = await obtenerEstados();
+    
+    // Calcular promedios de calificación por banco
+    const promediosCalificaciones = {};
+    bancos.forEach(banco => {
+        const reseñasBanco = reseñas.filter(r => r.banco === banco.nombre);
+        if (reseñasBanco.length > 0) {
+            const total = reseñasBanco.reduce((sum, r) => sum + parseInt(r.calificación), 0);
+            promediosCalificaciones[banco.nombre] = {
+                promedio: (total / reseñasBanco.length).toFixed(1),
+                cantidad: reseñasBanco.length
+            };
+        } else {
+            promediosCalificaciones[banco.nombre] = {
+                promedio: "0.0",
+                cantidad: 0
+            };
+        }
+    });
+    
+    let htmlContent = `
+    <html>
+        <head>
+            <title>Monitor de Bancos</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+            <style>
+                :root {
+                    --color-primary: #8B7355;
+                    --color-secondary: #D2B48C;
+                    --color-accent: #DEB887;
+                    --color-background: #FAF0E6;
+                    --color-text: #5C4033;
+                    --color-white: #FFFFFF;
+                    --color-error: #CD5C5C;
+                }
+
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+
+                body {
+                    font-family: 'Poppins', sans-serif;
+                    background-color: var(--color-background);
+                    color: var(--color-text);
+                    line-height: 1.6;
+                    min-height: 100vh;
+                }
+
+                .navbar {
+                    position: fixed;
+                    top: 0;
+                    width: 100%;
+                    background-color: var(--color-white);
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                    z-index: 1000;
+                    padding: 1rem 2rem;
+                }
+
+                .navbar-content {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .logo {
+                    font-size: 1.5rem;
+                    font-weight: 600;
+                    color: var(--color-primary);
+                    text-decoration: none;
+                }
+
+                .hamburger-menu {
+                    display: none;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    width: 30px;
+                    height: 21px;
+                    cursor: pointer;
+                    z-index: 100;
+                }
+
+                .bar {
+                    height: 3px;
+                    width: 100%;
+                    background-color: var(--color-primary);
+                    border-radius: 10px;
+                    transition: all 0.3s ease-in-out;
+                }
+
+                .hamburger-menu.active .bar:nth-child(1) {
+                    transform: translateY(9px) rotate(45deg);
+                }
+
+                .hamburger-menu.active .bar:nth-child(2) {
+                    opacity: 0;
+                }
+
+                .hamburger-menu.active .bar:nth-child(3) {
+                    transform: translateY(-9px) rotate(-45deg);
+                }
+
+                .nav-links {
+                    display: flex;
+                    gap: 2rem;
+                }
+
+                .nav-links a {
+                    text-decoration: none;
+                    color: var(--color-text);
+                    font-weight: 500;
+                    transition: color 0.3s;
+                }
+
+                .nav-links a:hover {
+                    color: var(--color-primary);
+                }
+
+                .main-content {
+                    margin-top: 100px;
+                    padding: 2rem;
+                    max-width: 1200px;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+
+                .page-header {
+                    background-color: var(--color-white);
+                    padding: 2rem;
+                    border-radius: 15px;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                    margin-bottom: 2rem;
+                    text-align: center;
+                }
+
+                .page-title {
+                    color: var(--color-primary);
+                    font-size: 2rem;
+                    margin-bottom: 1rem;
+                }
+
+                .status-summary {
+                    display: flex;
+                    justify-content: center;
+                    gap: 2rem;
+                    margin-top: 1rem;
+                }
+
+                .summary-item {
+                    padding: 0.5rem 1rem;
+                    border-radius: 8px;
+                    font-weight: 500;
+                }
+
+                .banks-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 2rem;
+                    padding: 1rem;
+                }
+
+                .bank-card {
+                    background-color: var(--color-white);
+                    border-radius: 15px;
+                    padding: 2rem;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                    transition: transform 0.3s, box-shadow 0.3s;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+
+                .bank-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+                }
+
+                .bank-logo {
+                    width: 160px;
+                    height: 70px;
+                    object-fit: contain;
+                    border-radius: 8px;
+                    background-color: white;
+                    padding: 8px;
+                    margin-bottom: 1rem;
+                    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                }
+
+                .bank-name {
+                    font-size: 1.25rem;
+                    color: var(--color-primary);
+                    margin-bottom: 1rem;
+                    text-align: center;
+                }
+
+                .status-badge {
+                    padding: 0.5rem 1rem;
+                    border-radius: 20px;
+                    font-weight: 500;
+                    margin: 1rem 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+
+                .status-icon {
+                    font-size: 1.2rem;
+                }
+
+                .status-online {
+                    background-color: rgba(46, 139, 87, 0.1);
+                    color: var(--color-success);
+                }
+
+                .status-offline {
+                    background-color: rgba(205, 92, 92, 0.1);
+                    color: var(--color-error);
+                }
+
+                .button {
+                    display: inline-block;
+                    padding: 0.8rem 1.5rem;
+                    background-color: var(--color-primary);
+                    color: var(--color-white);
+                    text-decoration: none;
+                    border-radius: 8px;
+                    transition: background-color 0.3s;
+                    border: none;
+                    cursor: pointer;
+                    font-weight: 500;
+                    margin-top: 1rem;
+                }
+
+                .button:hover {
+                    background-color: var(--color-secondary);
+                }
+
+                .refresh-section {
+                    text-align: center;
+                    margin: 2rem 0;
+                }
+
+                .last-update {
+                    color: var(--color-text);
+                    font-size: 0.9rem;
+                    margin-top: 0.5rem;
+                }
+
+                .bank-rating {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin: 1rem 0;
+                }
+
+                .bank-stars {
+                    color: var(--color-star);
+                }
+
+                .reviews-count {
+                    font-size: 0.9rem;
+                    color: var(--color-text);
+                    margin-top: 0.5rem;
+                }
+
+                @media (max-width: 768px) {
+                    .navbar-content {
+                        flex-direction: row;
+                        justify-content: space-between;
+                        align-items: center;
+                        position: relative;
+                    }
+
+                    .hamburger-menu {
+                        display: flex;
+                    }
+
+                    .nav-links {
+                        position: fixed;
+                        top: 0;
+                        right: -100%;
+                        flex-direction: column;
+                        background-color: var(--color-white);
+                        width: 80%;
+                        max-width: 300px;
+                        height: 100vh;
+                        z-index: 99;
+                        padding: 80px 20px 20px;
+                        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+                        transition: right 0.3s ease-in-out;
+                        align-items: flex-start;
+                    }
+
+                    .nav-links.mobile-active {
+                        right: 0;
+                    }
+
+                    .main-content {
+                        margin-top: 80px;
                         padding: 1rem;
                     }
 
                     .status-summary {
                         flex-direction: column;
                         align-items: center;
-                        gap: 1rem;
                     }
                 }
             </style>
         </head>
         <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <a href="/" class="logo">Monitor Bancario</a>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reportar">Reportar</a>
-                    </div>
-                </div>
-            </nav>
+            ${renderNavbar()}
 
             <main class="main-content">
                 <div class="page-header">
@@ -1010,7 +1253,7 @@ router.get("/estados", async (ctx) => {
     });
 
     htmlContent += `
-            </div>
+                </div>
             </main>
 
             <script>
@@ -1129,6 +1372,10 @@ router.get("/evaluar/:banco", async (ctx) => {
 
                 .nav-links a:hover {
                     color: var(--color-primary);
+                }
+
+                .logout-link {
+                    color: var(--color-error) !important;
                 }
 
                 .main-content {
@@ -1342,18 +1589,7 @@ router.get("/evaluar/:banco", async (ctx) => {
             </style>
         </head>
         <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <a href="/" class="logo">Monitor Bancario</a>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reseñas">Reseñas</a>
-                        <a href="/reportar">Reportar</a>
-            </div>
-                </div>
-            </nav>
+            ${renderNavbar()}
 
             <main class="main-content">
                 <a href="/estados" class="back-link">
@@ -1775,17 +2011,7 @@ router.get("/reportar", async (ctx) => {
             </style>
         </head>
         <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <a href="/" class="logo">Monitor Bancario</a>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reportar">Reportar</a>
-                    </div>
-                </div>
-            </nav>
+            ${renderNavbar()}
 
             <main class="main-content">
                 <div class="report-card">
@@ -1929,8 +2155,11 @@ router.post("/evaluar/:banco", async (ctx) => {
 
         // Agregar la reseña al inicio del array
         reseñas.unshift(nuevaReseña);
+        
+        // Guardar las reseñas en el archivo
+        await guardarReseñas(reseñas);
 
-        // Generar página de agradecimiento con redirección a estados
+        // Generar página de agradecimiento con redirección a inicio
         ctx.response.status = 200;
     ctx.response.body = `
     <html>
@@ -2005,7 +2234,7 @@ router.post("/evaluar/:banco", async (ctx) => {
                         font-weight: bold;
                     }
                 </style>
-                <meta http-equiv="refresh" content="3;url=/estados">
+                <meta http-equiv="refresh" content="3;url=/">
             </head>
             <body>
                 <div class="success-card">
@@ -2014,7 +2243,7 @@ router.post("/evaluar/:banco", async (ctx) => {
                     </div>
                     <h1 class="success-title">¡Gracias por tu evaluación!</h1>
                     <p class="success-message">Hemos registrado correctamente tu evaluación del servicio de ${banco}. Tu opinión es muy importante para nosotros y para otros usuarios del monitor bancario.</p>
-                    <p class="redirect-text">Serás redirigido a la página de estados en <span class="countdown">3</span> segundos...</p>
+                    <p class="redirect-text">Serás redirigido a la página principal (home) en <span class="countdown">3</span> segundos...</p>
                 </div>
                 
                 <script>
@@ -2028,7 +2257,7 @@ router.post("/evaluar/:banco", async (ctx) => {
                         
                         if (count <= 0) {
                             clearInterval(interval);
-                            window.location.href = '/estados';
+                            window.location.href = '/';
                         }
                     }, 1000);
                 </script>
@@ -2133,6 +2362,36 @@ router.get("/reseñas", async (ctx) => {
                     font-weight: 600;
                     color: var(--color-primary);
                     text-decoration: none;
+                }
+
+                .hamburger-menu {
+                    display: none;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    width: 30px;
+                    height: 21px;
+                    cursor: pointer;
+                    z-index: 100;
+                }
+
+                .bar {
+                    height: 3px;
+                    width: 100%;
+                    background-color: var(--color-primary);
+                    border-radius: 10px;
+                    transition: all 0.3s ease-in-out;
+                }
+
+                .hamburger-menu.active .bar:nth-child(1) {
+                    transform: translateY(9px) rotate(45deg);
+                }
+
+                .hamburger-menu.active .bar:nth-child(2) {
+                    opacity: 0;
+                }
+
+                .hamburger-menu.active .bar:nth-child(3) {
+                    transform: translateY(-9px) rotate(-45deg);
                 }
 
                 .nav-links {
@@ -2317,18 +2576,38 @@ router.get("/reseñas", async (ctx) => {
 
                 @media (max-width: 768px) {
                     .navbar-content {
-                        flex-direction: column;
-                        gap: 1rem;
+                        flex-direction: row;
+                        justify-content: space-between;
+                        align-items: center;
+                        position: relative;
+                    }
+
+                    .hamburger-menu {
+                        display: flex;
                     }
 
                     .nav-links {
+                        position: fixed;
+                        top: 0;
+                        right: -100%;
                         flex-direction: column;
-                        align-items: center;
-                        gap: 1rem;
+                        background-color: var(--color-white);
+                        width: 80%;
+                        max-width: 300px;
+                        height: 100vh;
+                        z-index: 99;
+                        padding: 80px 20px 20px;
+                        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+                        transition: right 0.3s ease-in-out;
+                        align-items: flex-start;
+                    }
+
+                    .nav-links.mobile-active {
+                        right: 0;
                     }
 
                     .main-content {
-                        margin-top: 150px;
+                        margin-top: 80px;
                         padding: 1rem;
                     }
 
@@ -2344,18 +2623,7 @@ router.get("/reseñas", async (ctx) => {
             </style>
         </head>
         <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <a href="/" class="logo">Monitor Bancario</a>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reseñas">Reseñas</a>
-                        <a href="/reportar">Reportar</a>
-            </div>
-                </div>
-            </nav>
+            ${renderNavbar()}
 
             <main class="main-content">
                 <a href="/estados" class="back-link">
@@ -2724,18 +2992,7 @@ router.get("/reseñas/:banco", async (ctx) => {
             </style>
         </head>
         <body>
-            <nav class="navbar">
-                <div class="navbar-content">
-                    <a href="/" class="logo">Monitor Bancario</a>
-                    <div class="nav-links">
-                        <a href="/">Inicio</a>
-                        <a href="/estados">Estados</a>
-                        <a href="/estadisticas">Estadísticas</a>
-                        <a href="/reseñas">Todas las Reseñas</a>
-                        <a href="/reportar">Reportar</a>
-                    </div>
-                </div>
-            </nav>
+            ${renderNavbar()}
 
             <main class="main-content">
                 <a href="/estados" class="back-link">
@@ -2791,12 +3048,514 @@ router.get("/reseñas/:banco", async (ctx) => {
     ctx.response.body = htmlContent;
 });
 
+// Ruta para mostrar los estados de los bancos
+router.get("/estados", async (ctx) => {
+    try {
+        const estados = await obtenerEstados();
+        
+        // Calcular promedios de calificación por banco
+        const promediosCalificaciones = {};
+        bancos.forEach(banco => {
+            const reseñasBanco = reseñas.filter(r => r.banco === banco.nombre);
+            if (reseñasBanco.length > 0) {
+                const total = reseñasBanco.reduce((sum, r) => sum + parseInt(r.calificación), 0);
+                promediosCalificaciones[banco.nombre] = {
+                    promedio: (total / reseñasBanco.length).toFixed(1),
+                    cantidad: reseñasBanco.length
+                };
+            } else {
+                promediosCalificaciones[banco.nombre] = {
+                    promedio: "0.0",
+                    cantidad: 0
+                };
+            }
+        });
+        
+        let htmlContent = `
+        <html>
+            <head>
+                <title>Estado de los Bancos</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+                <style>
+                    :root {
+                        --color-primary: #8B7355;
+                        --color-secondary: #D2B48C;
+                        --color-accent: #DEB887;
+                        --color-background: #FAF0E6;
+                        --color-text: #5C4033;
+                        --color-white: #FFFFFF;
+                        --color-success: #2E8B57;
+                        --color-error: #CD5C5C;
+                        --color-warning: #DAA520;
+                        --color-star: #FFD700;
+                    }
+
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+
+                    body {
+                        font-family: 'Poppins', sans-serif;
+                        background-color: var(--color-background);
+                        color: var(--color-text);
+                        line-height: 1.6;
+                        min-height: 100vh;
+                    }
+
+                    .navbar {
+                        position: fixed;
+                        top: 0;
+                        width: 100%;
+                        background-color: var(--color-white);
+                        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                        z-index: 1000;
+                        padding: 1rem 2rem;
+                    }
+
+                    .navbar-content {
+                        max-width: 1200px;
+                        margin: 0 auto;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+
+                    .logo {
+                        font-size: 1.5rem;
+                        font-weight: 600;
+                        color: var(--color-primary);
+                        text-decoration: none;
+                    }
+
+                    .hamburger-menu {
+                        display: none;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        width: 30px;
+                        height: 21px;
+                        cursor: pointer;
+                        z-index: 100;
+                    }
+
+                    .bar {
+                        height: 3px;
+                        width: 100%;
+                        background-color: var(--color-primary);
+                        border-radius: 10px;
+                        transition: all 0.3s ease-in-out;
+                    }
+
+                    .hamburger-menu.active .bar:nth-child(1) {
+                        transform: translateY(9px) rotate(45deg);
+                    }
+
+                    .hamburger-menu.active .bar:nth-child(2) {
+                        opacity: 0;
+                    }
+
+                    .hamburger-menu.active .bar:nth-child(3) {
+                        transform: translateY(-9px) rotate(-45deg);
+                    }
+
+                    .nav-links {
+                        display: flex;
+                        gap: 2rem;
+                    }
+
+                    .nav-links a {
+                        text-decoration: none;
+                        color: var(--color-text);
+                        font-weight: 500;
+                        transition: color 0.3s;
+                    }
+
+                    .nav-links a:hover {
+                        color: var(--color-primary);
+                    }
+
+                    .logout-link {
+                        color: var(--color-error) !important;
+                    }
+
+                    .main-content {
+                        margin-top: 100px;
+                        padding: 2rem;
+                        max-width: 1200px;
+                        margin-left: auto;
+                        margin-right: auto;
+                    }
+
+                    .page-header {
+                        background-color: var(--color-white);
+                        padding: 2rem;
+                        border-radius: 15px;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                        margin-bottom: 2rem;
+                        text-align: center;
+                    }
+
+                    .page-title {
+                        color: var(--color-primary);
+                        font-size: 2rem;
+                        margin-bottom: 1rem;
+                    }
+
+                    .status-summary {
+                        display: flex;
+                        justify-content: center;
+                        gap: 2rem;
+                        margin-top: 1rem;
+                    }
+
+                    .summary-item {
+                        padding: 0.5rem 1rem;
+                        border-radius: 8px;
+                        font-weight: 500;
+                    }
+
+                    .banks-grid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                        gap: 2rem;
+                        padding: 1rem;
+                    }
+
+                    .bank-card {
+                        background-color: var(--color-white);
+                        border-radius: 15px;
+                        padding: 2rem;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                        transition: transform 0.3s, box-shadow 0.3s;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                    }
+
+                    .bank-card:hover {
+                        transform: translateY(-5px);
+                        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+                    }
+
+                    .bank-logo {
+                        width: 160px;
+                        height: 70px;
+                        object-fit: contain;
+                        border-radius: 8px;
+                        background-color: white;
+                        padding: 8px;
+                        margin-bottom: 1rem;
+                        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                    }
+
+                    .bank-name {
+                        font-size: 1.25rem;
+                        color: var(--color-primary);
+                        margin-bottom: 1rem;
+                        text-align: center;
+                    }
+
+                    .status-badge {
+                        padding: 0.5rem 1rem;
+                        border-radius: 20px;
+                        font-weight: 500;
+                        margin: 1rem 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                    }
+
+                    .status-icon {
+                        font-size: 1.2rem;
+                    }
+
+                    .status-online {
+                        background-color: rgba(46, 139, 87, 0.1);
+                        color: var(--color-success);
+                    }
+
+                    .status-offline {
+                        background-color: rgba(205, 92, 92, 0.1);
+                        color: var(--color-error);
+                    }
+
+                    .button {
+                        display: inline-block;
+                        padding: 0.8rem 1.5rem;
+                        background-color: var(--color-primary);
+                        color: var(--color-white);
+                        text-decoration: none;
+                        border-radius: 8px;
+                        transition: background-color 0.3s;
+                        border: none;
+                        cursor: pointer;
+                        font-weight: 500;
+                        margin-top: 1rem;
+                    }
+
+                    .button:hover {
+                        background-color: var(--color-secondary);
+                    }
+
+                    .refresh-section {
+                        text-align: center;
+                        margin: 2rem 0;
+                    }
+
+                    .last-update {
+                        color: var(--color-text);
+                        font-size: 0.9rem;
+                        margin-top: 0.5rem;
+                    }
+
+                    .bank-rating {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        margin: 1rem 0;
+                    }
+
+                    .bank-stars {
+                        color: var(--color-star);
+                    }
+
+                    .reviews-count {
+                        font-size: 0.9rem;
+                        color: var(--color-text);
+                        margin-top: 0.5rem;
+                    }
+
+                    @media (max-width: 768px) {
+                        .navbar-content {
+                            flex-direction: row;
+                            justify-content: space-between;
+                            align-items: center;
+                            position: relative;
+                        }
+
+                        .hamburger-menu {
+                            display: flex;
+                        }
+
+                        .nav-links {
+                            position: fixed;
+                            top: 0;
+                            right: -100%;
+                            flex-direction: column;
+                            background-color: var(--color-white);
+                            width: 80%;
+                            max-width: 300px;
+                            height: 100vh;
+                            z-index: 99;
+                            padding: 80px 20px 20px;
+                            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+                            transition: right 0.3s ease-in-out;
+                            align-items: flex-start;
+                        }
+
+                        .nav-links.mobile-active {
+                            right: 0;
+                        }
+
+                        .main-content {
+                            margin-top: 80px;
+                            padding: 1rem;
+                        }
+
+                        .bank-header {
+                            flex-direction: column;
+                            text-align: center;
+                        }
+
+                        .buttons-container {
+                            flex-direction: column;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                ${renderNavbar()}
+
+                <main class="main-content">
+                    <div class="page-header">
+                        <h1 class="page-title">Estado de los Bancos</h1>
+                        <div class="status-summary">
+                            <div class="summary-item" id="bancos-activos">
+                                Bancos Activos: Calculando...
+                            </div>
+                            <div class="summary-item" id="bancos-inactivos">
+                                Bancos Inactivos: Calculando...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="refresh-section">
+                        <button class="button" onclick="actualizarEstados()">
+                            Actualizar Estados
+                        </button>
+                        <p class="last-update" id="ultima-actualizacion">
+                            Última actualización: --:--:--
+                        </p>
+                    </div>
+
+                    <div class="banks-grid">
+        `;
+        
+        estados.forEach((estado) => {
+            const esEnLinea = estado.estado === "activo";
+            const calificacion = promediosCalificaciones[estado.nombre];
+            
+            htmlContent += `
+                        <div class="bank-card">
+                            <img src="${estado.icono}" alt="${estado.nombre} Logo" class="bank-logo">
+                            <h2 class="bank-name">${estado.nombre}</h2>
+                            <div class="status-badge ${esEnLinea ? 'status-online' : 'status-offline'}">
+                                <i class="status-icon fas ${esEnLinea ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                                ${estado.status}
+                            </div>
+                            
+                            <div class="bank-rating">
+                                ${calificacion.promedio} 
+                                <div class="bank-stars">
+                                    ${renderStars(parseFloat(calificacion.promedio))}
+                                </div>
+                            </div>
+                            ${calificacion.cantidad > 0 ? 
+                                `<div class="reviews-count">Basado en ${calificacion.cantidad} reseña${calificacion.cantidad !== 1 ? 's' : ''}</div>` : 
+                                ''}
+                            
+                            <a href="/evaluar/${estado.nombre}" class="button">
+                                Evaluar Servicio
+                            </a>
+                            <a href="/reseñas/${estado.nombre}" class="button" style="margin-top: 0.5rem;">Ver Reseñas</a>
+            </div>
+            `;
+        });
+
+        htmlContent += `
+                    </div>
+                    </main>
+
+                    <script>
+                        function actualizarEstados() {
+                            fetch('/api/estados')
+                                .then(response => response.json())
+                                .then(datos => {
+                                    // Actualizar: usar la nueva propiedad 'estado' para determinar si está activo
+                                    const bancosActivos = datos.filter(banco => banco.estado === "activo").length;
+                                    const bancosInactivos = datos.length - bancosActivos;
+                                    
+                                    document.getElementById('bancos-activos').textContent = 
+                                        \`Bancos Activos: \${bancosActivos}\`;
+                                    document.getElementById('bancos-inactivos').textContent = 
+                                        \`Bancos Inactivos: \${bancosInactivos}\`;
+                                    document.getElementById('ultima-actualizacion').textContent = 
+                                        \`Última actualización: \${new Date().toLocaleTimeString()}\`;
+                                    
+                                    // Recargar la página para actualizar el estado de los bancos - ELIMINADO
+                                    // location.reload();
+                                })
+                                .catch(error => {
+                                    console.error('Error al actualizar estados:', error);
+                                });
+                        }
+
+                        // Actualizar estadísticas iniciales
+                        actualizarEstados();
+
+                        // Actualizar cada 10 minutos (en lugar de cada 5 minutos)
+                        setInterval(actualizarEstados, 600000);
+                    </script>
+                </body>
+            </html>
+            `;
+        ctx.response.body = htmlContent;
+    } catch (error) {
+        console.error("Error en la ruta /estados:", error);
+        ctx.response.status = 500;
+        ctx.response.body = `
+        <html>
+            <head>
+                <title>Error - Monitor de Bancos</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+                <style>
+                    :root {
+                        --color-primary: #8B7355;
+                        --color-secondary: #D2B48C;
+                        --color-background: #FAF0E6;
+                        --color-text: #5C4033;
+                        --color-white: #FFFFFF;
+                        --color-error: #CD5C5C;
+                    }
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    body {
+                        font-family: 'Poppins', sans-serif;
+                        background-color: var(--color-background);
+                        color: var(--color-text);
+                        line-height: 1.6;
+                        min-height: 100vh;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 2rem;
+                    }
+                    .error-container {
+                        background-color: var(--color-white);
+                        border-radius: 15px;
+                        padding: 2rem;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                        text-align: center;
+                        max-width: 500px;
+                    }
+                    .error-icon {
+                        font-size: 4rem;
+                        color: var(--color-error);
+                        margin-bottom: 1rem;
+                    }
+                    h1 {
+                        color: var(--color-primary);
+                        margin-bottom: 1rem;
+                    }
+                    .button {
+                        display: inline-block;
+                        padding: 0.8rem 1.5rem;
+                        background-color: var(--color-primary);
+                        color: var(--color-white);
+                        text-decoration: none;
+                        border-radius: 8px;
+                        margin-top: 1.5rem;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error-container">
+                    <div class="error-icon">⚠️</div>
+                    <h1>Error en la página de estados</h1>
+                    <p>Ha ocurrido un error al cargar la página de estados de los bancos. Por favor, vuelve a la página principal e intenta nuevamente.</p>
+                    <a href="/" class="button">Volver al inicio</a>
+                </div>
+            </body>
+        </html>
+        `;
+    }
+});
+
 // Configuración final de la aplicación
 app.use(router.routes());
 app.use(router.allowedMethods());
 
 // Manejo de errores global
 app.addEventListener("error", (evt) => {
+    console.log("ERROR GLOBAL:");
     console.log(evt.error);
 });
 
@@ -2807,4 +3566,4 @@ app.addEventListener("listen", ({ secure, hostname, port }) => {
 });
 
 // Iniciar el servidor
-await app.listen({ port: 8080 });
+await app.listen({ port: 8082 });
