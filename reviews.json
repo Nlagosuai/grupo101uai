@@ -1,0 +1,38 @@
+[
+  {
+    "banco": "Banco Estado",
+    "calificación": "3",
+    "comentario": "v",
+    "fecha": "4/27/2025, 9:30:56 PM",
+    "categorías": [
+      "otro"
+    ]
+  },
+  {
+    "banco": "BCI",
+    "calificación": "2",
+    "comentario": "muy lento!!",
+    "fecha": "4/27/2025, 9:27:01 PM",
+    "categorías": [
+      "lentitud"
+    ]
+  },
+  {
+    "banco": "Banco de Chile",
+    "calificación": "2",
+    "comentario": "siempre me cuest mucho ingresar a este banco",
+    "fecha": "4/27/2025, 9:25:24 PM",
+    "categorías": [
+      "acceso"
+    ]
+  },
+  {
+    "banco": "Banco de Chile",
+    "calificación": "3",
+    "comentario": "odio este banco",
+    "fecha": "4/22/2025, 3:01:37 PM",
+    "categorías": [
+      "otro"
+    ]
+  }
+]
