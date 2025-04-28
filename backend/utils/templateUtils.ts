@@ -16,10 +16,10 @@ export function renderNavbar(): string {
 
             <div class="nav-links">
                 <a href="/">Inicio</a>
-                <a href="/estados">Estados</a>
-                <a href="/estadisticas">Estadísticas</a>
-                <a href="/reseñas">Reseñas</a>
-                <a href="/reportar">Reportar</a>
+                <a href="/status">Estados</a>
+                <a href="/statistics">Estadísticas</a>
+                <a href="/reviews">Reseñas</a>
+                <a href="/report">Reportar</a>
                 <a href="/logout" class="logout-link">Cerrar Sesión</a>
             </div>
         </div>
@@ -43,7 +43,7 @@ interface PageOptions {
 export function renderPage({ title, bodyClass = '', headContent = '', bodyContent, scripts = [], styles = [] }: PageOptions): string {
     const defaultStyles = [
         '/css/variables.css',
-        '/css/estilos-base.css',
+        '/css/base-styles.css',
         '/css/navbar.css'
     ];
     const allStyles = [...defaultStyles, ...styles];

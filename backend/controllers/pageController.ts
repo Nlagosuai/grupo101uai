@@ -1,18 +1,17 @@
 import { Context, helpers } from "https://deno.land/x/oak@v11.1.0/mod.ts";
-import { bancos } from '../config.ts';
-import { obtenerTodasReseñas, agregarReseña, calcularEstadisticasReportes, calcularPromediosCalificaciones } from '../services/reviewService.ts';
-import { obtenerEstadosBancos, obtenerConfigBanco } from '../services/bankService.ts';
+import { banks } from '../config.ts';
+import { getAllReviews, addReview, calculateReportStatistics, calculateAverageRatings } from '../services/reviewService.ts';
+import { getBankStatuses, getBankConfig } from '../services/bankService.ts';
 import { renderPage } from '../utils/templateUtils.ts';
-import { renderStars, obtenerImagenBanco } from '../utils/renderUtils.ts';
-import type { Reseña } from '../types.ts';
+import { renderStars, getBankImage } from '../utils/renderUtils.ts';
+import type { Review, BankInfo, BankConfig } from '../types.ts';
 
 /**
  * Muestra la página principal (Home/Estados).
  */
 export async function showHomePage(ctx: Context) {
-    const estados = await obtenerEstadosBancos();
-    const reseñas = obtenerTodasReseñas();
-    const promediosCalificaciones = calcularPromediosCalificaciones(bancos);
+    const bankStatuses = await getBankStatuses();
+    const averageRatings = calculateAverageRatings(banks);
 
     const bodyContent = `
     <main class="main-content">
@@ -38,28 +37,28 @@ export async function showHomePage(ctx: Context) {
         </div>
 
         <div class="banks-grid">
-            ${estados.map((estado) => {
-                const esEnLinea = estado.estado === "activo";
-                const calificacion = promediosCalificaciones[estado.nombre] || { promedio: "0.0", cantidad: 0 };
-                const estrellas = renderStars(calificacion.promedio);
+            ${bankStatuses.map((status) => {
+                const isOnline = status.state === "active";
+                const ratingInfo = averageRatings[status.name] || { average: "0.0", count: 0 };
+                const stars = renderStars(ratingInfo.average);
 
                 return `
                     <div class="bank-card">
-                        <img src="${estado.icono}" alt="${estado.nombre} Logo" class="bank-logo">
-                        <h2 class="bank-name">${estado.nombre}</h2>
-                        <div class="status-badge ${esEnLinea ? 'status-online' : 'status-offline'}">
-                            <i class="status-icon fas ${esEnLinea ? 'fa-check-circle' : 'fa-times-circle'}"></i>
-                            ${estado.status}
+                        <img src="${status.icon}" alt="${status.name} Logo" class="bank-logo">
+                        <h2 class="bank-name">${status.name}</h2>
+                        <div class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">
+                            <i class="status-icon fas ${isOnline ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                            ${status.statusText}
                         </div>
                         <div class="bank-rating">
-                            ${calificacion.promedio}
-                            <div class="bank-stars">${estrellas}</div>
+                            ${ratingInfo.average}
+                            <div class="bank-stars">${stars}</div>
                         </div>
-                        ${calificacion.cantidad > 0 ?
-                            `<div class="reviews-count">Basado en ${calificacion.cantidad} reseña${calificacion.cantidad !== 1 ? 's' : ''}</div>` :
+                        ${ratingInfo.count > 0 ?
+                            `<div class="reviews-count">Basado en ${ratingInfo.count} reseña${ratingInfo.count !== 1 ? 's' : ''}</div>` :
                             '<div class="reviews-count">Sin reseñas</div>'}
-                        <a href="/evaluar/${encodeURIComponent(estado.nombre)}" class="button">Evaluar Servicio</a>
-                        <a href="/reseñas/${encodeURIComponent(estado.nombre)}" class="button" style="margin-top: 0.5rem;">Ver Reseñas</a>
+                        <a href="/evaluate/${encodeURIComponent(status.name)}" class="button">Evaluar Servicio</a>
+                        <a href="/reviews/${encodeURIComponent(status.name)}" class="button" style="margin-top: 0.5rem;">Ver Reseñas</a>
                     </div>
                 `;
             }).join('')}
@@ -70,16 +69,16 @@ export async function showHomePage(ctx: Context) {
     ctx.response.body = renderPage({
         title: "Inicio",
         bodyContent,
-        styles: ['/css/estados.css'], // Specific styles for this page
-        scripts: ['/js/estados.js']   // Specific script for this page
+        styles: ['/css/status.css'],
+        scripts: ['/js/status.js']
     });
 }
 
 /**
  * Muestra la página de estadísticas.
  */
-export async function showEstadisticasPage(ctx: Context) {
-    const reportesPorBanco = calcularEstadisticasReportes(bancos);
+export async function showStatisticsPage(ctx: Context) {
+    const reportsByBank = calculateReportStatistics(banks);
 
     const bodyContent = `
     <main class="main-content">
@@ -88,19 +87,19 @@ export async function showEstadisticasPage(ctx: Context) {
             <p>Análisis de las categorías más frecuentes en las reseñas.</p>
         </div>
         <div class="bank-reports">
-            ${bancos.map(banco => {
-                const reporteInfo = reportesPorBanco[banco.nombre] || { reporteComun: "Sin datos", conteo: 0, totalReseñas: 0 };
+            ${banks.map(bank => {
+                const reportInfo = reportsByBank[bank.name] || { commonReport: "Sin datos", count: 0, totalReviews: 0 };
                 return `
                     <div class="bank-report-card">
-                        <img src="${banco.icono}" alt="${banco.nombre}" class="bank-logo">
-                        <h2 class="bank-name">${banco.nombre}</h2>
-                        <div class="report-common ${reporteInfo.conteo === 0 ? 'no-reports' : ''}">
-                            <strong>Reporte más común:</strong> ${reporteInfo.reporteComun}
+                        <img src="${bank.icon}" alt="${bank.name}" class="bank-logo">
+                        <h2 class="bank-name">${bank.name}</h2>
+                        <div class="report-common ${reportInfo.count === 0 ? 'no-reports' : ''}">
+                            <strong>Reporte más común:</strong> ${reportInfo.commonReport}
                         </div>
-                        ${reporteInfo.conteo > 0 ? `
+                        ${reportInfo.count > 0 ? `
                             <div class="report-stats">
-                                <span>Ocurrencias: ${reporteInfo.conteo}</span>
-                                <span>Total reseñas: ${reporteInfo.totalReseñas}</span>
+                                <span>Ocurrencias: ${reportInfo.count}</span>
+                                <span>Total reseñas: ${reportInfo.totalReviews}</span>
                             </div>
                         ` : ''}
                     </div>
@@ -113,101 +112,98 @@ export async function showEstadisticasPage(ctx: Context) {
     ctx.response.body = renderPage({
         title: "Estadísticas",
         bodyContent,
-        styles: ['/css/estadisticas.css']
+        styles: ['/css/statistics.css']
     });
 }
 
 /**
  * Muestra la página general de reseñas (listando bancos).
  */
-export function showReseñasPage(ctx: Context) {
-    const reseñas = obtenerTodasReseñas();
-    const reseñasPorBanco: Record<string, { reseñas: Reseña[], promedio: string, cantidad: number }> = {};
+export function showReviewsPage(ctx: Context) {
+    const reviews = getAllReviews();
+    const reviewsByBank: Record<string, { reviews: Review[], average: string, count: number }> = {};
 
-    // Inicializar y agrupar reseñas
-    bancos.forEach(banco => {
-        reseñasPorBanco[banco.nombre] = { reseñas: [], promedio: "0.0", cantidad: 0 };
+    banks.forEach(bank => {
+        reviewsByBank[bank.name] = { reviews: [], average: "0.0", count: 0 };
     });
-    reseñas.forEach(reseña => {
-        if (reseñasPorBanco[reseña.banco]) {
-            reseñasPorBanco[reseña.banco].reseñas.push(reseña);
+    reviews.forEach(review => {
+        if (reviewsByBank[review.bank]) {
+            reviewsByBank[review.bank].reviews.push(review);
         }
     });
 
-    // Calcular promedios
-    Object.keys(reseñasPorBanco).forEach(nombreBanco => {
-        const bancoData = reseñasPorBanco[nombreBanco];
-        if (bancoData.reseñas.length > 0) {
-            const total = bancoData.reseñas.reduce((sum, r) => sum + parseInt(r.calificación, 10), 0);
-            bancoData.promedio = (total / bancoData.reseñas.length).toFixed(1);
-            bancoData.cantidad = bancoData.reseñas.length;
+    Object.keys(reviewsByBank).forEach(bankName => {
+        const bankData = reviewsByBank[bankName];
+        if (bankData.reviews.length > 0) {
+            const total = bankData.reviews.reduce((sum, r) => sum + parseInt(r.rating, 10), 0);
+            bankData.average = (total / bankData.reviews.length).toFixed(1);
+            bankData.count = bankData.reviews.length;
         }
     });
 
-    const totalReseñasGeneral = reseñas.length;
+    const totalReviewsOverall = reviews.length;
 
     const bodyContent = `
     <main class="main-content">
-        <a href="/estados" class="back-link">
+        <a href="/status" class="back-link">
             <i class="fas fa-arrow-left"></i> Volver a Estados
         </a>
         <div class="reviews-header">
             <h1>Reseñas de Usuarios</h1>
             <p>Experiencias compartidas por nuestros usuarios</p>
-            ${totalReseñasGeneral > 0 ? `<p>Total de reseñas: ${totalReseñasGeneral}</p>` : ''}
+            ${totalReviewsOverall > 0 ? `<p>Total de reseñas: ${totalReviewsOverall}</p>` : ''}
         </div>
 
-        ${totalReseñasGeneral === 0 ? `
+        ${totalReviewsOverall === 0 ? `
             <div class="no-reviews card">
                 <p>Aún no hay reseñas disponibles.</p>
                 <a href="/estados" class="button" style="margin-top: 1rem;">Evaluar un Banco</a>
             </div>
         ` : ''}
 
-        ${bancos.map(banco => {
-            const bancoDatos = reseñasPorBanco[banco.nombre];
-            // Solo mostrar bancos con reseñas en esta vista general
-            if (bancoDatos.cantidad === 0) return '';
-            const estrellas = renderStars(bancoDatos.promedio);
+        ${banks.map(bank => {
+            const bankData = reviewsByBank[bank.name];
+            if (bankData.count === 0) return '';
+            const stars = renderStars(bankData.average);
 
             return `
             <div class="bank-section">
                 <div class="bank-header card">
-                    <img src="${banco.icono}" alt="${banco.nombre} Logo" class="bank-logo">
+                    <img src="${bank.icon}" alt="${bank.name} Logo" class="bank-logo">
                     <div class="bank-info">
-                        <div class="bank-name">${banco.nombre}</div>
+                        <div class="bank-name">${bank.name}</div>
                         <div class="bank-rating">
-                            ${bancoDatos.promedio}
-                            <div class="bank-stars">${estrellas}</div>
+                            ${bankData.average}
+                            <div class="bank-stars">${stars}</div>
                         </div>
                     </div>
                     <div class="bank-stats">
-                        <span class="reviews-count">${bancoDatos.cantidad} reseña${bancoDatos.cantidad !== 1 ? 's' : ''}</span>
-                        <a href="/evaluar/${encodeURIComponent(banco.nombre)}" class="button">Evaluar</a>
-                        <a href="/reseñas/${encodeURIComponent(banco.nombre)}" class="button">Ver Todas</a>
+                        <span class="reviews-count">${bankData.count} reseña${bankData.count !== 1 ? 's' : ''}</span>
+                        <a href="/evaluate/${encodeURIComponent(bank.name)}" class="button">Evaluar</a>
+                        <a href="/reviews/${encodeURIComponent(bank.name)}" class="button">Ver Todas</a>
                     </div>
                 </div>
 
                 <div class="reviews-grid">
-                    ${bancoDatos.reseñas.slice(0, 3).map(reseña => {
-                        const estrellasReseña = renderStars(reseña.calificación);
+                    ${bankData.reviews.slice(0, 3).map(review => {
+                        const reviewStars = renderStars(review.rating);
                         return `
                         <div class="review-card card">
-                            <div class="review-date">${reseña.fecha}</div>
-                            <div class="review-rating">${estrellasReseña}</div>
+                            <div class="review-date">${review.date}</div>
+                            <div class="review-rating">${reviewStars}</div>
                             <div class="review-comment">
-                                <p>${reseña.comentario}</p> 
+                                <p>${review.comment}</p> 
                             </div>
                             <div class="review-categories">
-                                ${reseña.categorías.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
+                                ${review.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
                             </div>
                         </div>
                         `
                     }).join('')}
                 </div>
-                ${bancoDatos.reseñas.length > 3 ? `
+                ${bankData.reviews.length > 3 ? `
                     <div class="view-all">
-                        <a href="/reseñas/${encodeURIComponent(banco.nombre)}" class="button">Ver todas las ${bancoDatos.cantidad} reseñas de ${banco.nombre}</a>
+                        <a href="/reviews/${encodeURIComponent(bank.name)}" class="button">Ver todas las ${bankData.count} reseñas de ${bank.name}</a>
                     </div>
                 ` : ''}
             </div>
@@ -219,118 +215,118 @@ export function showReseñasPage(ctx: Context) {
     ctx.response.body = renderPage({
         title: "Reseñas de Usuarios",
         bodyContent,
-        styles: ['/css/reseñas.css']
+        styles: ['/css/reviews.css']
     });
 }
 
 /**
  * Muestra la página de reseñas para un banco específico.
  */
-export function showReseñasBancoPage(ctx: Context) {
-    const { banco: bancoNombreEncoded } = helpers.getQuery(ctx, { mergeParams: true });
-    const bancoNombre = decodeURIComponent(bancoNombreEncoded || '');
+export function showBankReviewsPage(ctx: Context) {
+    const { banco: encodedBankName } = helpers.getQuery(ctx, { mergeParams: true });
+    const bankName = decodeURIComponent(encodedBankName || '');
 
-    const bancoConfig = obtenerConfigBanco(bancoNombre);
-    if (!bancoConfig) {
+    const bankConfig = getBankConfig(bankName);
+    if (!bankConfig) {
         ctx.response.status = 404;
         ctx.response.body = renderPage({ title: "Error 404", bodyContent: "<main class='main-content'><h1>Banco no encontrado</h1></main>" });
         return;
     }
 
-    const todasReseñas = obtenerTodasReseñas();
-    const reseñasBanco = todasReseñas.filter(reseña => reseña.banco === bancoNombre);
-    const { promedio, cantidad } = calcularPromediosCalificaciones([bancoConfig])[bancoNombre] || { promedio: "0.0", cantidad: 0 };
-    const estrellasPromedio = renderStars(promedio);
+    const allReviews = getAllReviews();
+    const bankReviews = allReviews.filter(review => review.bank === bankName);
+    const { average, count } = calculateAverageRatings([bankConfig])[bankName] || { average: "0.0", count: 0 };
+    const averageStars = renderStars(average);
 
     const bodyContent = `
     <main class="main-content">
-        <a href="/reseñas" class="back-link">
+        <a href="/reviews" class="back-link">
             <i class="fas fa-arrow-left"></i> Volver a Todas las Reseñas
         </a>
 
         <div class="bank-header card">
-            <img src="${bancoConfig.icono}" alt="${bancoConfig.nombre} Logo" class="bank-logo">
+            <img src="${bankConfig.icon}" alt="${bankConfig.name} Logo" class="bank-logo">
             <div class="bank-info">
-                <h1 class="bank-name">Reseñas de ${bancoConfig.nombre}</h1>
+                <h1 class="bank-name">Reseñas de ${bankConfig.name}</h1>
                 <div class="bank-rating">
-                    ${promedio}
-                    <div class="bank-stars">${estrellasPromedio}</div>
+                    ${average}
+                    <div class="bank-stars">${averageStars}</div>
                 </div>
             </div>
             <div class="bank-stats">
-                <span class="reviews-count">${cantidad} reseña${cantidad !== 1 ? 's' : ''}</span>
-                <a href="/evaluar/${encodeURIComponent(bancoConfig.nombre)}" class="button">Evaluar Servicio</a>
+                <span class="reviews-count">${count} reseña${count !== 1 ? 's' : ''}</span>
+                <a href="/evaluate/${encodeURIComponent(bankConfig.name)}" class="button">Evaluar Servicio</a>
             </div>
         </div>
 
         <div class="reviews-grid">
-            ${reseñasBanco.length > 0 ? reseñasBanco.map(reseña => {
-                const estrellasReseña = renderStars(reseña.calificación);
+            ${count === 0 ? `
+                <div class="no-reviews card">
+                    <p>Aún no hay reseñas para ${bankName}. ¡Sé el primero!</p>
+                    <a href="/evaluate/${encodeURIComponent(bankConfig.name)}" class="button" style="margin-top: 1rem;">Sé el primero en evaluar</a>
+                </div>
+            ` : bankReviews.map(review => {
+                const reviewStars = renderStars(review.rating);
                 return `
                 <div class="review-card card">
-                    <div class="review-date">${reseña.fecha}</div>
-                    <div class="review-rating">${estrellasReseña}</div>
+                    <div class="review-date">${review.date}</div>
+                    <div class="review-rating">${reviewStars}</div>
                     <div class="review-comment">
-                         <p>${reseña.comentario}</p> 
+                         <p>${review.comment}</p> 
                     </div>
                     <div class="review-categories">
-                        ${reseña.categorías.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
+                        ${review.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
                     </div>
                 </div>
-            `}).join('') : `
-                <div class="no-reviews card">
-                    <p>Aún no hay reseñas para ${bancoConfig.nombre}.</p>
-                    <a href="/evaluar/${encodeURIComponent(bancoConfig.nombre)}" class="button" style="margin-top: 1rem;">Sé el primero en evaluar</a>
-                </div>
-            `}
+            `}).join('')}
         </div>
     </main>
     `;
 
     ctx.response.body = renderPage({
-        title: `Reseñas de ${bancoConfig.nombre}`,
+        title: `Reseñas de ${bankName}`,
         bodyContent,
-        styles: ['/css/reseñas-banco.css']
+        styles: ['/css/bank-reviews.css']
     });
 }
 
 /**
- * Muestra el formulario para evaluar un banco.
+ * Muestra la página para evaluar un banco específico.
  */
-export function showEvaluarPage(ctx: Context) {
-    const { banco: bancoNombreEncoded } = helpers.getQuery(ctx, { mergeParams: true });
-    const bancoNombre = decodeURIComponent(bancoNombreEncoded || '');
+export function showEvaluatePage(ctx: Context) {
+    const { banco: encodedBankName } = helpers.getQuery(ctx, { mergeParams: true });
+    const bankName = decodeURIComponent(encodedBankName || '');
 
-    const bancoConfig = obtenerConfigBanco(bancoNombre);
-    if (!bancoConfig) {
+    const bankConfig = getBankConfig(bankName);
+    if (!bankConfig) {
         ctx.response.status = 404;
         ctx.response.body = renderPage({ title: "Error 404", bodyContent: "<main class='main-content'><h1>Banco no encontrado</h1></main>" });
         return;
     }
 
-    const imagenBanco = bancoConfig.icono;
+    const bankImage = bankConfig.icon;
 
     const bodyContent = `
     <main class="main-content">
-        <a href="/estados" class="back-link">
+        <a href="/status" class="back-link">
             <i class="fas fa-arrow-left"></i> Volver a Estados
         </a>
         <div class="evaluation-card card">
             <div class="bank-header">
-                <img src="${imagenBanco}" alt="${bancoNombre} Logo" class="bank-logo">
+                <img src="${bankImage}" alt="${bankName} Logo" class="bank-logo">
                 <div class="bank-info">
-                    <h1>Evaluar ${bancoNombre}</h1>
+                    <h1>Evaluar ${bankName}</h1>
                     <p>Comparte tu experiencia con el servicio</p>
                 </div>
             </div>
 
-            <form class="evaluation-form" id="evaluationForm" action="/evaluar/${encodeURIComponent(bancoNombre)}" method="POST">
+            <form class="evaluation-form" id="evaluationForm" action="/evaluate/${encodeURIComponent(bankName)}" method="POST">
                 <div class="form-group">
                     <label>¿Cómo calificarías tu experiencia?</label>
                     <div class="star-rating">
                         <div class="stars">
                             ${[1, 2, 3, 4, 5].map(n => `
-                                <input type="radio" name="calificación" value="${n}" id="rating${n}" required hidden>
+                                <input type="radio" name="calificacion" value="${n}" id="rating${n}" required hidden>
                                 <label for="rating${n}" class="star" data-rating="${n}">
                                     <i class="fas fa-star"></i>
                                 </label>
@@ -350,7 +346,7 @@ export function showEvaluarPage(ctx: Context) {
                             { value: 'seguridad', text: 'Seguridad' },
                             { value: 'otro', text: 'Otro' }
                         ].map(cat => `
-                            <input type="checkbox" name="categorías" value="${cat.value}" id="cat${cat.value}" hidden>
+                            <input type="checkbox" name="categorias" value="${cat.value}" id="cat${cat.value}" hidden>
                             <label for="cat${cat.value}" class="category-tag">${cat.text}</label>
                         `).join('')}
                     </div>
@@ -380,20 +376,20 @@ export function showEvaluarPage(ctx: Context) {
     `;
 
     ctx.response.body = renderPage({
-        title: `Evaluar ${bancoNombre}`,
+        title: `Evaluar ${bankName}`,
         bodyContent,
-        styles: ['/css/evaluar.css'],
-        scripts: ['/js/evaluar.js']
+        styles: ['/css/evaluate.css'],
+        scripts: ['/js/evaluate.js']
     });
 }
 
 /**
  * Muestra la página para reportar un error.
  */
-export function showReportarPage(ctx: Context) {
+export function showReportPage(ctx: Context) {
     const bodyContent = `
     <main class="main-content">
-         <a href="/estados" class="back-link">
+         <a href="/status" class="back-link">
             <i class="fas fa-arrow-left"></i> Volver a Estados
         </a>
         <div class="report-card card">
@@ -407,7 +403,7 @@ export function showReportarPage(ctx: Context) {
                     <label for="banco">Selecciona el Banco</label>
                     <select id="banco" name="banco" class="form-control" required>
                         <option value="">Selecciona un banco...</option>
-                        ${bancos.map(b => `<option value="${b.nombre}">${b.nombre}</option>`).join('')}
+                        ${banks.map(b => `<option value="${b.name}">${b.name}</option>`).join('')}
                     </select>
                 </div>
 
@@ -460,20 +456,20 @@ export function showReportarPage(ctx: Context) {
     ctx.response.body = renderPage({
         title: "Reportar Error",
         bodyContent,
-        styles: ['/css/reportar.css'],
-        scripts: ['/js/reportar.js']
+        styles: ['/css/report.css'],
+        scripts: ['/js/report.js']
     });
 }
 
 /**
  * Procesa el envío del formulario de evaluación.
  */
-export async function handleEvaluarSubmit(ctx: Context) {
+export async function handleEvaluateSubmit(ctx: Context) {
     try {
-        const { banco: bancoNombreEncoded } = helpers.getQuery(ctx, { mergeParams: true });
-        const bancoNombre = decodeURIComponent(bancoNombreEncoded || '');
+        const { banco: encodedBankName } = helpers.getQuery(ctx, { mergeParams: true });
+        const bankName = decodeURIComponent(encodedBankName || '');
 
-        if (!obtenerConfigBanco(bancoNombre)) {
+        if (!getBankConfig(bankName)) {
             ctx.response.status = 404;
             ctx.response.body = { message: "Banco no encontrado" };
             return;
@@ -486,66 +482,65 @@ export async function handleEvaluarSubmit(ctx: Context) {
             return;
         }
         const formData = await body.value;
-        const calificación = formData.get("calificación");
-        const comentario = formData.get("comentario");
-        const categorías = formData.getAll("categorías"); // Puede ser un array vacío
+        const ratingValue = formData.get("calificacion");
+        const commentValue = formData.get("comentario");
+        const categoryValues = formData.getAll("categorias");
 
-        // Validar datos básicos
-        if (!calificación || !comentario) {
+        if (!ratingValue || !commentValue) {
             ctx.response.status = 400;
             ctx.response.body = { message: "La calificación y el comentario son requeridos" };
             return;
         }
 
-        const nuevaReseña: Omit<Reseña, 'fecha'> = {
-            banco: bancoNombre,
-            calificación: calificación.toString(),
-            comentario: comentario.toString(),
-            categorías: categorías.length > 0 ? categorías.map(String) : ['otro'] // Asegurar 'otro' si no se seleccionan categorías
+        const reviewData = {
+            banco: bankName,
+            calificación: ratingValue,
+            comentario: commentValue,
+            categorías: categoryValues
         };
 
-        await agregarReseña(nuevaReseña);
+        await addReview(reviewData);
 
-        // Mostrar página de agradecimiento con redirección
-        const bodyContent = `
-        <div class="success-card">
-            <div class="success-icon">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <h1 class="success-title">¡Gracias por tu evaluación!</h1>
-            <p class="success-message">Hemos registrado correctamente tu evaluación del servicio de ${bancoNombre}. Tu opinión es muy importante.</p>
-            <p class="redirect-text">Serás redirigido a la página principal en <span class="countdown">3</span> segundos...</p>
-        </div>
-        `;
-
-        const headContent = `<meta http-equiv="refresh" content="3;url=/">`;
-
-        ctx.response.status = 200;
-        // Renderizar página de agradecimiento sin navbar
-         ctx.response.body = `
-        <!DOCTYPE html>
-        <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Evaluación Enviada - Monitor de Bancos</title>
-                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-                <link rel="stylesheet" href="/css/variables.css">
-                <link rel="stylesheet" href="/css/agradecimiento.css">
-                ${headContent}
-            </head>
-            <body class="agradecimiento-page">
-                ${bodyContent}
-                <script src="/js/agradecimiento.js" defer></script>
-            </body>
-        </html>
-        `;
+        ctx.response.redirect(`/thank-you?banco=${encodeURIComponent(bankName)}`);
 
     } catch (error) {
-        console.error("Error al procesar la evaluación:", error);
+        console.error("Error processing evaluation submission:", error);
         ctx.response.status = 500;
-        // Podríamos mostrar una página de error específica
-        ctx.response.body = { message: "Error interno al procesar la evaluación." };
+        ctx.response.body = renderPage({
+             title: "Error",
+             bodyContent: `<main class='main-content'><h1>Error al procesar la evaluación</h1><p>${error.message}</p></main>`,
+             styles: ['/css/error.css']
+         });
     }
+}
+
+/**
+ * Muestra la página de agradecimiento.
+ */
+export function showThankYouPage(ctx: Context) {
+    const { banco: encodedBankName } = helpers.getQuery(ctx, { mergeParams: true });
+    const bankName = decodeURIComponent(encodedBankName || 'este banco');
+
+    const bodyContent = `
+    <main class="main-content success-card">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h1 class="success-title">¡Gracias por tu evaluación!</h1>
+        <p class="success-message">
+            Tu opinión sobre ${bankName} ha sido registrada. Ayuda a otros usuarios a tomar decisiones informadas.
+        </p>
+        <a href="/status" class="button">Volver a Estados</a>
+        <p class="redirect-text">
+            Serás redirigido automáticamente en <span id="countdown" class="countdown">5</span> segundos...
+        </p>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: "Evaluación Enviada",
+        bodyContent,
+        styles: ['/css/thank-you.css'],
+        scripts: ['/js/thank-you.js']
+    }, 'agradecimiento-page');
 } 

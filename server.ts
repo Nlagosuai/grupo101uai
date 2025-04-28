@@ -1,5 +1,5 @@
 import { Application, send } from "https://deno.land/x/oak@v11.1.0/mod.ts";
-import { cargarYProcesarReseñas } from "./backend/services/reviewService.ts";
+import { loadAndProcessReviews } from "./backend/services/reviewService.ts";
 import { errorMiddleware } from "./backend/middleware/errorMiddleware.ts";
 import { authMiddleware } from "./backend/middleware/authMiddleware.ts";
 import authRouter from "./backend/routes/authRoutes.ts";
@@ -8,10 +8,13 @@ import pageRouter from "./backend/routes/pageRoutes.ts";
 
 const app = new Application();
 const port = 8082;
+// cd C:\Nicolas\Vscode codes\sprint6
+// deno run --allow-net --allow-write --allow-read server.ts
+
 
 // 1. Cargar datos iniciales
 console.log("Cargando reseñas...");
-await cargarYProcesarReseñas();
+await loadAndProcessReviews();
 console.log("Reseñas cargadas.");
 
 // 2. Middleware

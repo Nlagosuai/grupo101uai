@@ -1,40 +1,5 @@
 {
   "version": "4",
-  "specifiers": {
-    "npm:node-fetch@^3.3.2": "3.3.2"
-  },
-  "npm": {
-    "data-uri-to-buffer@4.0.1": {
-      "integrity": "sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A=="
-    },
-    "fetch-blob@3.2.0": {
-      "integrity": "sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==",
-      "dependencies": [
-        "node-domexception",
-        "web-streams-polyfill"
-      ]
-    },
-    "formdata-polyfill@4.0.10": {
-      "integrity": "sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==",
-      "dependencies": [
-        "fetch-blob"
-      ]
-    },
-    "node-domexception@1.0.0": {
-      "integrity": "sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ=="
-    },
-    "node-fetch@3.3.2": {
-      "integrity": "sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==",
-      "dependencies": [
-        "data-uri-to-buffer",
-        "fetch-blob",
-        "formdata-polyfill"
-      ]
-    },
-    "web-streams-polyfill@3.3.3": {
-      "integrity": "sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="
-    }
-  },
   "redirects": {
     "https://deno.land/std/http/server.ts": "https://deno.land/std@0.224.0/http/server.ts",
     "https://deno.land/x/puppeteer/mod.ts": "https://deno.land/x/puppeteer@16.2.0/mod.ts",
@@ -609,12 +574,5 @@
     "https://esm.sh/util-deprecate@1.0.2/denonext/util-deprecate.mjs": "083639894972cb68837eef26346c43bdd01357977149e0a4493f76192a4008b8",
     "https://esm.sh/util-deprecate@1.0.2?target=denonext": "859f4df8ba771a4c33143185d3db6a7edb824fab1ed4f9a4b96ac0e6bc3ef1a4",
     "https://raw.githubusercontent.com/jshttp/mime-db/v1.52.0/db.json": "85c8e1ba609079947c8df83c092900ab0226e1d7b60e5e7105fb7dd701833263"
-  },
-  "workspace": {
-    "packageJson": {
-      "dependencies": [
-        "npm:node-fetch@^3.3.2"
-      ]
-    }
   }
 }

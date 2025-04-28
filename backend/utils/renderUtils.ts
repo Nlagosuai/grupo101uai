@@ -1,10 +1,10 @@
-import { bancos } from '../config.ts';
+import { banks } from '../config.ts';
 
 /**
  * Convierte una calificación numérica en estrellas visuales (HTML).
  */
 export function renderStars(rating: number | string): string {
-    let stars = '';
+    let starsHtml = '';
     // Asegurarse de que la calificación sea un número, manejar strings
     const ratingNum = typeof rating === 'string' ? parseFloat(rating) : rating;
 
@@ -16,19 +16,19 @@ export function renderStars(rating: number | string): string {
 
     for (let i = 1; i <= 5; i++) {
         if (i <= fullStars) {
-            stars += '★'; // Estrella llena
+            starsHtml += '★'; // Estrella llena
         } else {
-            stars += '☆'; // Estrella vacía
+            starsHtml += '☆'; // Estrella vacía
         }
     }
-    return stars;
+    return starsHtml;
 }
 
 /**
  * Obtiene la URL del icono (logo) de un banco por su nombre.
  */
-export function obtenerImagenBanco(nombreBanco: string): string {
-    const banco = bancos.find(b => b.nombre === nombreBanco);
+export function getBankImage(bankName: string): string {
+    const bank = banks.find(b => b.name === bankName);
     // Devolver URL del icono o una imagen genérica como fallback
-    return banco?.icono || 'https://via.placeholder.com/100x50?text=Banco';
+    return bank?.icon || 'https://via.placeholder.com/100x50?text=Bank';
 } 

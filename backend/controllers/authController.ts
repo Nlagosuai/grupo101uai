@@ -60,7 +60,7 @@ export function showLoginPage(ctx: Context) {
             <title>Iniciar Sesión - Monitor de Bancos</title>
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
             <link rel="stylesheet" href="/css/variables.css">
-            <link rel="stylesheet" href="/css/estilos-base.css"> 
+            <link rel="stylesheet" href="/css/base-styles.css">
             <link rel="stylesheet" href="/css/login.css">
         </head>
         <body class="login-page">

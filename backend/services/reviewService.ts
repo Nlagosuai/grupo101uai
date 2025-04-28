@@ -1,59 +1,72 @@
 import { DB_FILE } from '../config.ts';
-import type { Reseña } from '../types.ts';
+import type { Review as Reseña } from '../types.ts';
+import type { Review } from '../types.ts';
 
 // Almacenamiento de reseñas en memoria (se carga desde el archivo)
-let reseñas: Reseña[] = [];
+let reviews: Review[] = [];
 
 /**
  * Asigna categorías automáticamente a reseñas que no las tienen.
  */
-function asignarCategoriasAResenas(reseñasData: any[]): Reseña[] {
-    return reseñasData.map(reseña => {
+function assignCategoriesToReviews(reviewsData: any[]): Review[] {
+    return reviewsData.map(reviewData => {
         // Si ya tiene categorías o no es una reseña válida, no hacer nada
-        if (!reseña || typeof reseña.comentario !== 'string' || (reseña.categorías && reseña.categorías.length > 0)) {
-            return reseña as Reseña; // Asumimos que es una reseña si pasa el filtro inicial
+        if (!reviewData || typeof reviewData.comentario !== 'string' || (reviewData.categorias && reviewData.categorias.length > 0)) {
+            if (reviewData && typeof reviewData.calificación === 'string') {
+                return {
+                    id: reviewData.id,
+                    bank: reviewData.banco,
+                    rating: reviewData.calificación,
+                    comment: reviewData.comentario,
+                    categories: reviewData.categorias || [],
+                    date: reviewData.fecha
+                } as Review;
+            }
+            return reviewData as Review;
         }
 
-        const comentario = reseña.comentario.toLowerCase();
-        const categorías: string[] = [];
+        const comment = reviewData.comentario.toLowerCase();
+        const categories: string[] = [];
 
         // Analizar el comentario para asignar categorías
-        if (comentario.includes('lent') || comentario.includes('demor') || comentario.includes('tard')) {
-            categorías.push('lentitud');
+        if (comment.includes('lent') || comment.includes('demor') || comment.includes('tard')) {
+            categories.push('slow');
         }
-        if (comentario.includes('acces') || comentario.includes('ingres') || comentario.includes('entr') || comentario.includes('login')) {
-            categorías.push('acceso');
+        if (comment.includes('acces') || comment.includes('ingres') || comment.includes('entr') || comment.includes('login')) {
+            categories.push('access');
         }
-        if (comentario.includes('error') || comentario.includes('fall') || comentario.includes('problem')) {
-            categorías.push('error');
+        if (comment.includes('error') || comment.includes('fall') || comment.includes('problem')) {
+            categories.push('error');
         }
-        if (comentario.includes('segur') || comentario.includes('contrase') || comentario.includes('robo')) {
-            categorías.push('seguridad');
+        if (comment.includes('segur') || comment.includes('contrase') || comment.includes('robo')) {
+            categories.push('security');
         }
 
         // Si no se identificó ninguna categoría, asignar "otro"
-        if (categorías.length === 0) {
-            categorías.push('otro');
+        if (categories.length === 0) {
+            categories.push('other');
         }
 
-        // Retornar la reseña con categorías asignadas
+        // Retornar la reseña con categorías asignadas y English fields
         return {
-            ...reseña,
-            categorías
-        };
+            id: reviewData.id,
+            bank: reviewData.banco,
+            rating: reviewData.calificación,
+            comment: reviewData.comentario,
+            categories: categories,
+            date: reviewData.fecha,
+        } as Review;
     });
 }
 
 /**
  * Guarda las reseñas en el archivo JSON.
  */
-async function guardarReseñas(reseñasParaGuardar: Reseña[]) {
+async function saveReviews(reviewsToSave: Review[]) {
     try {
-        await Deno.writeTextFile(DB_FILE, JSON.stringify(reseñasParaGuardar, null, 2));
+        await Deno.writeTextFile(DB_FILE, JSON.stringify(reviewsToSave, null, 2));
     } catch (error) {
-        console.error("Error al guardar reseñas:", error);
-        // Podríamos lanzar el error para manejarlo en un nivel superior si es necesario
-        // throw error;
+        console.error("Error saving reviews:", error);
     }
 }
 
@@ -61,132 +74,146 @@ async function guardarReseñas(reseñasParaGuardar: Reseña[]) {
  * Carga las reseñas desde el archivo JSON, asigna categorías si es necesario,
  * y actualiza el archivo si hubo cambios.
  */
-export async function cargarYProcesarReseñas(): Promise<void> {
-    let reseñasActualizadas: Reseña[] = [];
+export async function loadAndProcessReviews(): Promise<void> {
+    let updatedReviews: Review[] = [];
     try {
-        const contenido = await Deno.readTextFile(DB_FILE);
-        const reseñasCargadas = JSON.parse(contenido);
+        const content = await Deno.readTextFile(DB_FILE);
+        const loadedReviewsData = JSON.parse(content);
 
-        // Asegurarnos de que reseñasCargadas es un array
-        if (!Array.isArray(reseñasCargadas)) {
-            console.error("El archivo de reseñas no contiene un array válido.");
-            reseñas = [];
+        if (!Array.isArray(loadedReviewsData)) {
+            console.error("Review file does not contain a valid array.");
+            reviews = [];
             return;
         }
 
-        // Asignar categorías a reseñas sin categorías
-        reseñasActualizadas = asignarCategoriasAResenas(reseñasCargadas);
+        updatedReviews = assignCategoriesToReviews(loadedReviewsData);
 
-        // Si hubo cambios, guardar las reseñas actualizadas
-        if (JSON.stringify(reseñasCargadas) !== JSON.stringify(reseñasActualizadas)) {
-            await guardarReseñas(reseñasActualizadas);
-            console.log("Reseñas actualizadas con categorías asignadas automáticamente.");
+        const initialReviewsWithEnglishKeys = loadedReviewsData.map(r => ({
+             id: r.id, bank: r.banco, rating: r.calificación, comment: r.comentario, categories: r.categorías || [], date: r.fecha
+        }) as Review);
+
+        if (JSON.stringify(initialReviewsWithEnglishKeys) !== JSON.stringify(updatedReviews)) {
+            await saveReviews(updatedReviews);
+            console.log("Reviews updated with automatically assigned categories.");
+        } else {
+            
         }
 
     } catch (error) {
         if (error instanceof Deno.errors.NotFound) {
-            console.warn(`Archivo de reseñas (${DB_FILE}) no encontrado. Se creará uno nuevo al guardar la primera reseña.`);
+            console.warn(`Review file (${DB_FILE}) not founz. A new one will be created when the first review is saved.`);
         } else {
-            console.error("Error al cargar o procesar reseñas:", error);
+            console.error("Error loading or processing reviews:", error);
         }
-        // Si hay error (excepto NotFound), inicializamos con un array vacío
-        reseñasActualizadas = [];
+        updatedReviews = [];
     }
-    reseñas = reseñasActualizadas; // Actualiza la variable en memoria
-    console.log(`Reseñas cargadas en memoria: ${reseñas.length}`);
+    reviews = updatedReviews;
+    console.log(`Reviews loaded into memory: ${reviews.length}`);
 }
 
 /**
  * Obtiene todas las reseñas almacenadas en memoria.
  */
-export function obtenerTodasReseñas(): Reseña[] {
-    return [...reseñas]; // Devuelve una copia para evitar mutaciones externas
+export function getAllReviews(): Review[] {
+    return [...reviews];
 }
 
 /**
  * Agrega una nueva reseña a la lista y la guarda en el archivo.
+ * Expects the incoming object to potentially use Spanish keys from the form.
  */
-export async function agregarReseña(nuevaReseña: Omit<Reseña, 'fecha' | 'categorías'> & { categorías?: string[] }): Promise<void> {
-    const reseñaCompleta: Reseña = {
-        ...nuevaReseña,
-        fecha: new Date().toLocaleString(),
-        // Asegurar que categorías sea un array, asignar 'otro' si está vacío o no existe
-        categorías: (nuevaReseña.categorías && nuevaReseña.categorías.length > 0) ? nuevaReseña.categorías : ['otro']
+export async function addReview(newReviewData: any): Promise<void> {
+    const completeReview: Review = {
+        id: crypto.randomUUID(),
+        bank: newReviewData.banco,
+        rating: newReviewData.calificación,
+        comment: newReviewData.comentario,
+        date: new Date().toLocaleString(),
+        categories: (newReviewData.categorías && newReviewData.categorías.length > 0)
+            ? newReviewData.categorías.map((cat: string) => {
+                const translationMap: { [key: string]: string } = {
+                    'acceso': 'access',
+                    'lentitud': 'slow',
+                    'error': 'error',
+                    'seguridad': 'security',
+                    'otro': 'other'
+                };
+                return translationMap[cat.toLowerCase()] || cat;
+              })
+            : ['other']
     };
 
-    // Agregar la reseña al inicio del array en memoria
-    reseñas.unshift(reseñaCompleta);
+    reviews.unshift(completeReview);
 
-    // Guardar el array actualizado en el archivo
-    await guardarReseñas(reseñas);
+    await saveReviews(reviews);
 }
 
 /**
  * Calcula las estadísticas de reportes comunes por banco.
  */
-export function calcularEstadisticasReportes(bancosConfig: { nombre: string }[]): Record<string, { reporteComun: string; conteo: number; totalReseñas: number }> {
-    const reportesPorBanco: Record<string, { reporteComun: string; conteo: number; totalReseñas: number }> = {};
+export function calculateReportStatistics(banksConfig: { name: string }[]): Record<string, { commonReport: string; count: number; totalReviews: number }> {
+    const reportsByBank: Record<string, { commonReport: string; count: number; totalReviews: number }> = {};
 
-    bancosConfig.forEach(banco => {
-        const reseñasBanco = reseñas.filter(r => r.banco === banco.nombre);
+    banksConfig.forEach(bank => {
+        const bankReviews = reviews.filter(r => r.bank === bank.name);
 
-        if (reseñasBanco.length > 0) {
-            const conteoCategorias: Record<string, number> = {};
-            reseñasBanco.forEach(reseña => {
-                if (reseña.categorías && reseña.categorías.length > 0) {
-                    reseña.categorías.forEach(categoria => {
-                        conteoCategorias[categoria] = (conteoCategorias[categoria] || 0) + 1;
+        if (bankReviews.length > 0) {
+            const categoryCounts: Record<string, number> = {};
+            bankReviews.forEach(review => {
+                if (review.categories && review.categories.length > 0) {
+                    review.categories.forEach(category => {
+                        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
                     });
                 }
             });
 
-            let categoriaComun = "Sin categoría específica";
-            let maxConteo = 0;
-            for (const [categoria, conteo] of Object.entries(conteoCategorias)) {
-                if (conteo > maxConteo) {
-                    maxConteo = conteo;
-                    categoriaComun = categoria;
+            let commonCategory = "No specific category";
+            let maxCount = 0;
+            for (const [category, count] of Object.entries(categoryCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    commonCategory = category;
                 }
             }
 
-            reportesPorBanco[banco.nombre] = {
-                reporteComun: categoriaComun,
-                conteo: maxConteo,
-                totalReseñas: reseñasBanco.length
+            reportsByBank[bank.name] = {
+                commonReport: commonCategory,
+                count: maxCount,
+                totalReviews: bankReviews.length
             };
         } else {
-            reportesPorBanco[banco.nombre] = {
-                reporteComun: "Sin reportes",
-                conteo: 0,
-                totalReseñas: 0
+            reportsByBank[bank.name] = {
+                commonReport: "No reports",
+                count: 0,
+                totalReviews: 0
             };
         }
     });
 
-    return reportesPorBanco;
+    return reportsByBank;
 }
 
 /**
  * Calcula los promedios de calificación por banco.
  */
-export function calcularPromediosCalificaciones(bancosConfig: { nombre: string }[]): Record<string, { promedio: string; cantidad: number }> {
-    const promedios: Record<string, { promedio: string; cantidad: number }> = {};
+export function calculateAverageRatings(banksConfig: { name: string }[]): Record<string, { average: string; count: number }> {
+    const averages: Record<string, { average: string; count: number }> = {};
 
-    bancosConfig.forEach(banco => {
-        const reseñasBanco = reseñas.filter(r => r.banco === banco.nombre);
-        if (reseñasBanco.length > 0) {
-            const total = reseñasBanco.reduce((sum, r) => sum + parseInt(r.calificación, 10), 0);
-            promedios[banco.nombre] = {
-                promedio: (total / reseñasBanco.length).toFixed(1),
-                cantidad: reseñasBanco.length
+    banksConfig.forEach(bank => {
+        const bankReviews = reviews.filter(r => r.bank === bank.name);
+        if (bankReviews.length > 0) {
+            const total = bankReviews.reduce((sum, r) => sum + parseInt(r.rating, 10), 0);
+            averages[bank.name] = {
+                average: (total / bankReviews.length).toFixed(1),
+                count: bankReviews.length
             };
         } else {
-            promedios[banco.nombre] = {
-                promedio: "0.0",
-                cantidad: 0
+            averages[bank.name] = {
+                average: "0.0",
+                count: 0
             };
         }
     });
 
-    return promedios;
+    return averages;
 } 

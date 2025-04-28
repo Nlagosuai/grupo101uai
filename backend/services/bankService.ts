@@ -1,47 +1,47 @@
-import { bancos } from '../config.ts';
-import type { BancoInfo, BancoConfig } from '../types.ts';
+import { banks } from '../config.ts';
+import type { BankInfo, BankConfig } from '../types.ts';
 
 /**
  * Verifica el estado de un banco específico.
  */
-async function verificarBanco(bancoConfig: BancoConfig): Promise<BancoInfo> {
-    const { nombre, url, icono } = bancoConfig;
+async function checkBankStatus(bankConfig: BankConfig): Promise<BankInfo> {
+    const { name, url, icon } = bankConfig;
     try {
-        const inicioTiempo = Date.now();
+        const startTime = Date.now();
 
         // Usar HEAD request para eficiencia, timeout de 5 segundos
-        const respuesta = await fetch(url, {
+        const response = await fetch(url, {
             method: 'HEAD',
             signal: AbortSignal.timeout(5000)
         });
 
-        const tiempoRespuesta = Date.now() - inicioTiempo;
+        const responseTimeMs = Date.now() - startTime;
 
         return {
-            nombre: nombre,
+            name: name,
             url: url,
-            tiempoRespuesta: `${tiempoRespuesta}ms`,
-            codigoEstado: respuesta.status,
-            status: respuesta.ok ? "ACTIVO" : `INACTIVO (Código: ${respuesta.status})`,
-            estado: respuesta.ok ? "activo" : "inactivo",
-            icono: icono || "https://via.placeholder.com/100x50?text=Banco" // Fallback icon
+            responseTime: `${responseTimeMs}ms`,
+            statusCode: response.status,
+            statusText: response.ok ? "ACTIVE" : `INACTIVE (Code: ${response.status})`,
+            state: response.ok ? "active" : "inactive",
+            icon: icon || "https://via.placeholder.com/100x50?text=Bank" // Fallback icon
         };
     } catch (error) {
         // Manejar errores específicos si es necesario (e.g., AbortError for timeout)
-        let errorMessage = error instanceof Error ? error.message : "Error desconocido";
+        let errorMessage = error instanceof Error ? error.message : "Unknown error";
         if (error instanceof Error && error.name === 'TimeoutError') { // Deno uses TimeoutError
              errorMessage = 'Timeout';
         }
-        console.log(`Error al verificar ${nombre}: ${errorMessage}`);
+        console.log(`Error al verificar ${name}: ${errorMessage}`);
 
         return {
-            nombre: nombre,
+            name: name,
             url: url,
-            tiempoRespuesta: "N/A",
-            codigoEstado: 0,
-            status: `INACTIVO (Error: ${errorMessage})`,
-            estado: "inactivo",
-            icono: icono || "https://via.placeholder.com/100x50?text=Banco" // Fallback icon
+            responseTime: "N/A",
+            statusCode: 0,
+            statusText: `INACTIVE (Error: ${errorMessage})`,
+            state: "inactive",
+            icon: icon || "https://via.placeholder.com/100x50?text=Bank" // Fallback icon
         };
     }
 }
@@ -49,15 +49,15 @@ async function verificarBanco(bancoConfig: BancoConfig): Promise<BancoInfo> {
 /**
  * Obtiene el estado de todos los bancos configurados.
  */
-export async function obtenerEstadosBancos(): Promise<BancoInfo[]> {
+export async function getBankStatuses(): Promise<BankInfo[]> {
     // Utilizar Promise.all para ejecutar las verificaciones en paralelo
-    const resultados = await Promise.all(bancos.map(banco => verificarBanco(banco)));
-    return resultados;
+    const results = await Promise.all(banks.map(bank => checkBankStatus(bank)));
+    return results;
 }
 
 /**
  * Obtiene la configuración de un banco por su nombre.
  */
-export function obtenerConfigBanco(nombreBanco: string): BancoConfig | undefined {
-    return bancos.find(b => b.nombre === nombreBanco);
+export function getBankConfig(bankName: string): BankConfig | undefined {
+    return banks.find(b => b.name === bankName);
 } 

@@ -1,23 +1,24 @@
-export interface Reseña {
-    banco: string;
-    calificación: string;
-    comentario: string;
-    fecha: string;
-    categorías: string[];
+export interface Review {
+    id: string;
+    bank: string;
+    rating: string;
+    comment: string;
+    date: string;
+    categories: string[];
 }
 
-export interface BancoInfo {
-    nombre: string;
+export interface BankInfo {
+    name: string;
     url: string;
-    tiempoRespuesta: string;
-    codigoEstado: number;
-    status: string;
-    estado: "activo" | "inactivo";
-    icono: string;
+    responseTime: string;
+    statusCode: number;
+    statusText: string;
+    state: "active" | "inactive";
+    icon: string;
 }
 
-export interface BancoConfig {
-    nombre: string;
+export interface BankConfig {
+    name: string;
     url: string;
-    icono: string;
+    icon: string;
 } 

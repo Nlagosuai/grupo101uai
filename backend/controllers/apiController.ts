@@ -1,13 +1,13 @@
 import { Context } from "https://deno.land/x/oak@v11.1.0/mod.ts";
-import { obtenerEstadosBancos } from '../services/bankService.ts';
+import { getBankStatuses as fetchBankStatuses } from '../services/bankService.ts';
 
 /**
  * Devuelve el estado actual de todos los bancos como JSON.
  */
-export async function getBankStatuses(ctx: Context) {
+export async function getBankStatusesApi(ctx: Context) {
     try {
-        const estados = await obtenerEstadosBancos();
-        ctx.response.body = estados;
+        const statuses = await fetchBankStatuses();
+        ctx.response.body = statuses;
         ctx.response.type = "json";
     } catch (error) {
         console.error("Error fetching bank statuses:", error);
@@ -20,12 +20,12 @@ export async function getBankStatuses(ctx: Context) {
 // Si hubiera más endpoints API, se añadirían aquí.
 // Por ejemplo, un endpoint para obtener todas las reseñas:
 /*
-import { obtenerTodasReseñas } from '../services/reviewService.ts';
+import { getAllReviews as fetchAllReviews } from '../services/reviewService.ts';
 
-export function getAllReviews(ctx: Context) {
+export function getAllReviewsApi(ctx: Context) {
     try {
-        const reseñas = obtenerTodasReseñas();
-        ctx.response.body = reseñas;
+        const reviews = fetchAllReviews();
+        ctx.response.body = reviews;
         ctx.response.type = "json";
     } catch (error) {
         console.error("Error fetching all reviews:", error);
