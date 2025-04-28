@@ -1,0 +1,155 @@
+[
+  {
+    "id": "c44ca474-77e3-46e8-848f-0494130e5521",
+    "bank": "Banco de Chile",
+    "rating": "4",
+    "comment": "es muy lento este banco!",
+    "date": "4/28/2025, 5:18:53 PM",
+    "categories": [
+      "slow"
+    ]
+  },
+  {
+    "id": "cbb03331-e526-448f-8fa9-f71fb9a07622",
+    "bank": "BCI",
+    "rating": "4",
+    "comment": "f",
+    "date": "4/28/2025, 4:02:27 PM",
+    "categories": [
+      "slow"
+    ]
+  },
+  {
+    "id": "f82dccb0-4689-47cd-8389-c29aef592f15",
+    "bank": "BCI",
+    "rating": "4",
+    "comment": "f",
+    "date": "4/28/2025, 4:01:45 PM",
+    "categories": [
+      "slow"
+    ]
+  },
+  {
+    "id": "81e4a2d9-c3f3-406b-8f47-6cb9be60d8cf",
+    "bank": "BCI",
+    "rating": "3",
+    "comment": "f",
+    "date": "4/28/2025, 3:50:59 PM",
+    "categories": [
+      "error"
+    ]
+  },
+  {
+    "id": "0ae80d23-bfef-45c0-801d-68a8718adeaa",
+    "bank": "BCI",
+    "rating": "3",
+    "comment": "f",
+    "date": "4/28/2025, 3:50:57 PM",
+    "categories": [
+      "error"
+    ]
+  },
+  {
+    "id": "199da929-dc29-47f2-82e6-8a23c1aa4dc2",
+    "bank": "BCI",
+    "rating": "5",
+    "comment": "vb",
+    "date": "4/28/2025, 3:50:04 PM",
+    "categories": [
+      "error"
+    ]
+  },
+  {
+    "id": "8cbb80fa-52fe-4b4f-9d9f-200b5b7c55ec",
+    "bank": "BCI",
+    "rating": "5",
+    "comment": "test",
+    "date": "4/28/2025, 3:48:08 PM",
+    "categories": [
+      "slow"
+    ]
+  },
+  {
+    "id": "1e6f365e-b78d-4c92-962b-58150c7fda2e",
+    "bank": "BCI",
+    "rating": "5",
+    "comment": "test",
+    "date": "4/28/2025, 3:48:00 PM",
+    "categories": [
+      "slow"
+    ]
+  },
+  {
+    "id": "c7d32a6e-562d-46f7-bb32-370964aecc08",
+    "bank": "BCI",
+    "rating": "4",
+    "comment": "funciona perfe",
+    "date": "4/28/2025, 3:46:07 PM",
+    "categories": [
+      "slow"
+    ]
+  },
+  {
+    "bank": "Banco Falabella",
+    "rating": "4",
+    "comment": "perfectoo",
+    "categories": [
+      "other"
+    ],
+    "date": "4/28/2025, 3:32:21 PM"
+  },
+  {
+    "bank": "Banco de Chile",
+    "rating": "3",
+    "comment": "banco!",
+    "categories": [
+      "other"
+    ],
+    "date": "4/28/2025, 3:30:09 PM"
+  },
+  {
+    "bank": "Banco de Chile",
+    "rating": "1",
+    "comment": "buenisimo",
+    "categories": [
+      "other"
+    ],
+    "date": "4/28/2025, 3:28:40 PM"
+  },
+  {
+    "bank": "Banco Estado",
+    "rating": "3",
+    "comment": "v",
+    "categories": [
+      "other"
+    ],
+    "date": "4/27/2025, 9:30:56 PM"
+  },
+  {
+    "bank": "BCI",
+    "rating": "2",
+    "comment": "muy lento!!",
+    "categories": [
+      "slow"
+    ],
+    "date": "4/27/2025, 9:27:01 PM"
+  },
+  {
+    "bank": "Banco de Chile",
+    "rating": "2",
+    "comment": "siempre me cuest mucho ingresar a este banco",
+    "categories": [
+      "access"
+    ],
+    "date": "4/27/2025, 9:25:24 PM"
+  },
+  {
+    "bank": "Banco de Chile",
+    "rating": "3",
+    "comment": "odio este banco",
+    "categories": [
+      "other"
+    ],
+    "date": "4/22/2025, 3:01:37 PM"
+  }
+]

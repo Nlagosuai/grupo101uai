@@ -1,0 +1,137 @@
+@import url('variables.css');
+@import url('base-styles.css');
+@import url('navbar.css');
+
+/* Main content specific adjustments */
+.main-content {
+    max-width: 800px; /* Narrower content area */
+}
+
+.evaluation-card {
+    /* Inherits .card styles from estilos-base.css */
+}
+
+.bank-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--color-background);
+}
+
+.bank-logo {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.bank-info h1 {
+    color: var(--color-primary);
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.evaluation-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Star rating styles */
+.star-rating {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0; /* Reduced margin */
+}
+
+.stars {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.star {
+    font-size: 2rem;
+    color: #ddd; /* Default star color */
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.star i {
+    transition: color 0.3s; /* Ensure icon color transitions smoothly */
+}
+
+.star:hover i,
+.star.active i {
+    color: var(--color-star);
+}
+
+.rating-text {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-top: 0.5rem;
+}
+
+/* Category tags */
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.category-tag {
+    padding: 0.5rem 1rem;
+    background-color: var(--color-background);
+    border: 1px solid var(--color-secondary); /* Add subtle border */
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem; /* Slightly smaller font */
+}
+
+.category-tag:hover,
+.category-tag.active {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+}
+
+/* Buttons container */
+.buttons-container {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.success-message {
+    display: none; /* Hidden by default, shown via JS */
+    background-color: rgba(46, 139, 87, 0.1);
+    color: var(--color-success);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    /* Inherits base responsive styles */
+    .main-content {
+        margin-top: 100px; /* Adjust if navbar height changes */
+    }
+
+    .bank-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .buttons-container {
+        flex-direction: column;
+    }
+} 
