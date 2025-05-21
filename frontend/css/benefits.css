@@ -1,0 +1,32 @@
+/* frontend/css/benefits.css */
+
+#benefits-management-section {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#benefits-management-section h2 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+#benefits-controls {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    background-color: #fff;
+    border-radius: 6px;
+}
+
+#benefits-list {
+    padding: 15px;
+    border: 1px solid #eee;
+    background-color: #fff;
+    border-radius: 6px;
+    min-height: 100px;
+}
+
+/* Add more specific styles for forms, tables, buttons etc. as you build them */ 

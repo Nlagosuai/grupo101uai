@@ -7,7 +7,9 @@ import {
     showEvaluatePage,
     showReportPage,
     handleEvaluateSubmit,
-    showThankYouPage
+    showThankYouPage,
+    showLeaderboardPage,
+    showBenefitsPage
 } from "../controllers/pageController.ts";
 
 const pageRouter = new Router();
@@ -21,6 +23,8 @@ pageRouter.get("/reviews/:banco", showBankReviewsPage);
 pageRouter.get("/evaluate/:banco", showEvaluatePage);
 pageRouter.get("/report", showReportPage);
 pageRouter.get("/thank-you", showThankYouPage);
+pageRouter.get("/leaderboard", showLeaderboardPage);
+pageRouter.get("/benefits", showBenefitsPage);
 
 // POST route for form submission
 pageRouter.post("/evaluate/:banco", handleEvaluateSubmit);

@@ -19,6 +19,8 @@ export function renderNavbar(): string {
                 <a href="/status">Estados</a>
                 <a href="/statistics">Estadísticas</a>
                 <a href="/reviews">Reseñas</a>
+                <a href="/leaderboard">Leaderboard</a>
+                <a href="/benefits">Beneficios</a>
                 <a href="/report">Reportar</a>
                 <a href="/logout" class="logout-link">Cerrar Sesión</a>
             </div>

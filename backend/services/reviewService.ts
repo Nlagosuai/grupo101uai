@@ -216,4 +216,36 @@ export function calculateAverageRatings(banksConfig: { name: string }[]): Record
     });
 
     return averages;
+}
+
+/**
+ * Generates leaderboard data based on average review scores.
+ */
+export function getLeaderboardData(): { bank: string; averageRating: number; rank: number }[] {
+    if (!reviews || reviews.length === 0) {
+        return [];
+    }
+
+    const bankRatings: { [key: string]: { totalRating: number; reviewCount: number } } = {};
+
+    reviews.forEach(review => {
+        if (!bankRatings[review.bank]) {
+            bankRatings[review.bank] = { totalRating: 0, reviewCount: 0 };
+        }
+        bankRatings[review.bank].totalRating += parseInt(review.rating, 10);
+        bankRatings[review.bank].reviewCount++;
+    });
+
+    const leaderboard = Object.entries(bankRatings)
+        .map(([bank, data]) => ({
+            bank,
+            averageRating: parseFloat((data.totalRating / data.reviewCount).toFixed(1)),
+        }))
+        .sort((a, b) => b.averageRating - a.averageRating); // Sort descending by average rating
+
+    // Assign ranks
+    return leaderboard.map((item, index) => ({
+        ...item,
+        rank: index + 1,
+    }));
 } 
