@@ -1,0 +1,144 @@
+@import url('variables.css');
+@import url('navbar.css');
+
+/* Base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* Main content area adjustments */
+.main-content {
+    margin-top: 100px; /* Initial top margin for fixed navbar */
+    padding: 2rem;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Shared card styles */
+.card {
+    background-color: var(--color-white);
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+/* Shared button styles */
+.button {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background-color 0.3s;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    text-align: center;
+}
+
+.button:hover {
+    background-color: var(--color-secondary);
+}
+
+.button-secondary {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    border: 1px solid var(--color-secondary);
+}
+
+.button-secondary:hover {
+    background-color: var(--color-secondary);
+    color: var(--color-white);
+}
+
+/* Shared form styles */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.form-control,
+input[type="text"],
+input[type="password"],
+select,
+textarea {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--color-secondary);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--color-text);
+    transition: border-color 0.3s;
+}
+
+.form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+/* Shared back link */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* Shared page header */
+.page-header {
+    background-color: var(--color-white);
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.page-title {
+    color: var(--color-primary);
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Shared responsive adjustments */
+@media (max-width: 768px) {
+    .main-content {
+        margin-top: 80px; /* Adjust top margin for smaller screens if navbar height changes */
+        padding: 1rem;
+    }
+} 
