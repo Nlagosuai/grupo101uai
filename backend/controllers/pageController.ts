@@ -543,4 +543,138 @@ export function showThankYouPage(ctx: Context) {
         styles: ['/css/thank-you.css'],
         scripts: ['/js/thank-you.js']
     }, 'agradecimiento-page');
+}
+
+/**
+ * Muestra la página del leaderboard.
+ */
+export function showLeaderboardPage(ctx: Context) {
+    // Los datos del leaderboard se obtendrán mediante una solicitud fetch desde el frontend.
+    // Aquí solo servimos la estructura HTML básica.
+    const bodyContent = `
+    <main class="main-content" id="leaderboard-container">
+        <section id="leaderboard-section">
+            <h2>Ranking de Bancos por Calificación Promedio</h2>
+            <table id="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Banco</th>
+                        <th>Calificación Promedio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="3">Cargando leaderboard...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: "Leaderboard de Bancos",
+        bodyContent,
+        styles: ['/css/leaderboard.css'], // Asegúrate que el CSS del leaderboard está referenciado
+        scripts: ['/js/leaderboard.js']    // Y el JS también
+    });
+}
+
+/**
+ * Muestra la página de gestión de beneficios mensuales.
+ */
+export function showBenefitsPage(ctx: Context) {
+    // The actual content of benefits.html is mostly static initially,
+    // dynamic parts will be handled by frontend JavaScript fetching from API endpoints.
+    const bodyContent = `
+    <main class="main-content" id="benefits-page-container">
+        <section id="benefits-management-section">
+            <h2>Administrar Beneficios Mensuales</h2>
+            <p>
+                Aquí podrás agregar, editar o eliminar los beneficios ofrecidos cada mes.
+            </p>
+            
+            <!-- Year and Month Selector -->
+            <div id="benefits-controls" class="controls-container card">
+                <h3>Seleccionar Mes y Año</h3>
+                <form id="month-year-selector-form">
+                    <div class="form-group">
+                        <label for="year-select">Año:</label>
+                        <input type="number" id="year-select" name="year" value="${new Date().getFullYear()}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="month-select">Mes:</label>
+                        <select id="month-select" name="month" required>
+                            ${[...Array(12).keys()].map(i => `
+                            <option value="${i + 1}" ${i + 1 === (new Date().getMonth() + 1) ? 'selected' : ''}>
+                                ${new Date(0, i).toLocaleString('es-ES', { month: 'long' })}
+                            </option>`).join('')}
+                        </select>
+                    </div>
+                    <button type="button" id="load-benefits-button" class="button">Cargar Beneficios</button>
+                </form>
+            </div>
+
+            <!-- Form to Add/Edit Benefit -->
+            <div id="benefit-form-container" class="card" style="display: none;">
+                <h3 id="benefit-form-title">Agregar Nuevo Beneficio</h3>
+                <form id="benefit-form">
+                    <input type="hidden" id="benefit-id" name="benefitId">
+                    <div class="form-group">
+                        <label for="benefit-name">Nombre del Beneficio:</label>
+                        <input type="text" id="benefit-name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-description">Descripción:</label>
+                        <textarea id="benefit-description" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-category">Categoría:</label>
+                        <input type="text" id="benefit-category" name="category" placeholder="Ej: viajes, comida, descuentos">
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-bank">Banco Asociado (Opcional):</label>
+                        <input type="text" id="benefit-bank" name="bankAssociation" placeholder="Ej: Banco XYZ">
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-valid-from">Válido Desde (Opcional):</label>
+                        <input type="date" id="benefit-valid-from" name="validFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-valid-to">Válido Hasta (Opcional):</label>
+                        <input type="date" id="benefit-valid-to" name="validTo">
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-details-url">URL Detalles (Opcional):</label>
+                        <input type="url" id="benefit-details-url" name="detailsUrl" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label for="benefit-terms">Términos y Condiciones (Opcional):</label>
+                        <textarea id="benefit-terms" name="termsAndConditions" rows="2"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="button">Guardar Beneficio</button>
+                        <button type="button" id="cancel-edit-button" class="button button-secondary" style="display:none;">Cancelar Edición</button>
+                    </div>
+                </form>
+            </div>
+
+            <button type="button" id="show-add-benefit-form-button" class="button" style="margin-top: 1rem; display: none;">Agregar Nuevo Beneficio al Mes Seleccionado</button>
+            
+            <!-- Benefits Listing Area -->
+            <div id="benefits-list-container" class="card" style="margin-top: 1rem;">
+                <h3>Beneficios del Mes Seleccionado</h3>
+                <div id="benefits-list">
+                    <p>Selecciona un mes y año para ver los beneficios, o para agregar nuevos.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: "Gestión de Beneficios",
+        bodyContent,
+        styles: ['/css/benefits.css', '/css/forms.css'], // Assuming a general forms.css might be useful
+        scripts: ['/js/benefits.js']
+    });
 } 

@@ -2,6 +2,7 @@ import type { BankConfig } from './types.ts';
 
 // Utilidad para guardar y cargar reseñas desde un archivo
 export const DB_FILE = "./reviews.json";
+export const DB_BENEFITS_FILE = "./benefits.json"; // File for storing monthly benefits
 
 // Lista de bancos con logos oficiales actualizados
 export const banks: BankConfig[] = [
