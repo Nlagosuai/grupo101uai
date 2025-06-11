@@ -1,0 +1,194 @@
+@import url('variables.css');
+@import url('base-styles.css');
+@import url('navbar.css');
+
+/* Main content specific adjustments */
+.main-content {
+    max-width: 800px; /* Narrower content area */
+}
+
+.evaluation-card {
+    /* Inherits .card styles from estilos-base.css */
+}
+
+.bank-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--color-background);
+}
+
+.bank-logo {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.bank-info h1 {
+    color: var(--color-primary);
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.evaluation-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Star rating styles */
+.star-rating {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0; /* Reduced margin */
+}
+
+.star-rating .stars {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.star-rating .star {
+    font-size: 2.5rem;
+    color: #ddd; /* Default star color */
+    cursor: pointer;
+    transition: color 0.3s;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.star-rating i {
+    transition: color 0.3s; /* Ensure icon color transitions smoothly */
+}
+
+.star-rating .star:hover i,
+.star-rating .star.active i {
+    color: var(--color-star);
+}
+
+.star-rating .star i,
+.star-rating-small .star i {
+    pointer-events: none; /* Arreglar el hover sobre el ícono */
+}
+
+.rating-text {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+}
+
+/* Category tags */
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.category-tag {
+    padding: 0.5rem 1rem;
+    background-color: var(--color-background);
+    border: 1px solid var(--color-secondary); /* Add subtle border */
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem; /* Slightly smaller font */
+}
+
+.category-tag:hover,
+.category-tag.active {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+}
+
+/* Buttons container */
+.buttons-container {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.success-message {
+    display: none; /* Hidden by default, shown via JS */
+    background-color: rgba(46, 139, 87, 0.1);
+    color: var(--color-success);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Contenedor de calificaciones detalladas */
+.sub-ratings-container {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.sub-ratings-title {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.sub-rating-group {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.star-rating-small .stars {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.star-rating-small .star {
+    font-size: 1.5rem; /* Estrellas más pequeñas */
+    color: #ccc;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.star-rating-small .stars:hover .star,
+.star-rating-small .stars .star:hover,
+.star-rating-small .stars .star:hover ~ .star {
+    color: var(--color-star);
+}
+
+.star-rating input[type="radio"]:checked ~ .star,
+.star-rating-small input[type="radio"]:checked ~ .star {
+    color: var(--color-star);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    /* Inherits base responsive styles */
+    .main-content {
+        margin-top: 100px; /* Adjust if navbar height changes */
+    }
+
+    .bank-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .buttons-container {
+        flex-direction: column;
+    }
+
+    .evaluation-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+} 
