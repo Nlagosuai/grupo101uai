@@ -1,0 +1,58 @@
+[
+  {
+    "id": "13d238b6-f72e-4298-a844-244964a36889",
+    "bank": "BCI",
+    "problemType": "facilidad_de_desuscripcion",
+    "description": "",
+    "date": "2025-06-11T18:18:35.088Z",
+    "status": "recibido"
+  },
+  {
+    "id": "fc739ee3-88e6-4ce9-9051-cf1b9b96c9e5",
+    "bank": "BCI",
+    "problemType": "disponibilidad",
+    "description": "",
+    "date": "2025-06-11T16:11:55.196Z",
+    "status": "recibido"
+  },
+  {
+    "id": "5da0ef15-52f0-4dab-8609-3075714338a1",
+    "bank": "BCI",
+    "problemType": "calidad_de_servicio",
+    "description": "f",
+    "date": "2025-06-11T16:01:41.713Z",
+    "status": "recibido"
+  },
+  {
+    "id": "d4c946a1-4414-42c9-82d9-eaf79ab8e351",
+    "bank": "Banco Estado",
+    "problemType": "calidad_de_servicio",
+    "description": "odio el servicio",
+    "date": "2025-06-11T15:56:53.807Z",
+    "status": "recibido"
+  },
+  {
+    "id": "2e18146c-256f-46f4-ac72-6f90280f0441",
+    "bank": "BCI",
+    "problemType": "disponibilidad",
+    "description": "npo esta disponible",
+    "date": "2025-06-11T15:56:40.924Z",
+    "status": "recibido"
+  },
+  {
+    "id": "c67f52dd-4a2a-42fd-b45a-5f9e2dc5b4cb",
+    "bank": "BCI",
+    "problemType": "disponibilidad",
+    "description": "no esta disponible",
+    "date": "2025-06-11T15:48:58.173Z",
+    "status": "recibido"
+  },
+  {
+    "id": "b6b9dda3-4ba5-4a66-8a89-886fbf6360e6",
+    "bank": "BCI",
+    "problemType": "disponibilidad",
+    "description": "no esta disponible el banco\n",
+    "date": "2025-06-11T15:48:24.897Z",
+    "status": "recibido"
+  }
+]

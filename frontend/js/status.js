@@ -1,14 +1,24 @@
 // Estados page script
 
 function updateStatuses() {
-    fetch('/api/statuses')
+    // Mostrar indicador visual de actualización
+    const lastUpdateElement = document.getElementById('ultima-actualizacion');
+    if (lastUpdateElement) {
+        lastUpdateElement.textContent = 'Actualizando...';
+        lastUpdateElement.style.color = 'var(--primary-color)';
+    }
+
+    fetch('/api/status')
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
-        .then(statusesData => {
+        .then(data => {
+            // La respuesta del API contiene los estados en data.statuses
+            const statusesData = data.statuses || [];
+            
             const activeBanksElement = document.getElementById('bancos-activos');
             const inactiveBanksElement = document.getElementById('bancos-inactivos');
             const lastUpdateElement = document.getElementById('ultima-actualizacion');
@@ -19,16 +29,24 @@ function updateStatuses() {
                 return;
             }
 
-            const activeBanksCount = statusesData.filter(bank => bank.state === "active").length;
+            // Consideramos que un banco está activo si su estado es "online"
+            const activeBanksCount = statusesData.filter(bank => bank.status === "online").length;
             const inactiveBanksCount = statusesData.length - activeBanksCount;
 
+            // Actualizar contadores
             activeBanksElement.textContent = `Bancos Activos: ${activeBanksCount}`;
             inactiveBanksElement.textContent = `Bancos Inactivos: ${inactiveBanksCount}`;
-            lastUpdateElement.textContent = `Última actualización: ${new Date().toLocaleTimeString()}`;
+            
+            // Actualizar hora de actualización
+            const currentTime = new Date().toLocaleTimeString();
+            lastUpdateElement.textContent = `Última actualización: ${currentTime}`;
+            lastUpdateElement.style.color = 'var(--text-color)';
 
-            const bankCardElements = banksGridContainer.querySelectorAll('.bank-card');
+            // Mapear la información de estado para acceso rápido
             const statusDataMap = new Map(statusesData.map(b => [b.name, b]));
 
+            // Actualizar cada tarjeta de banco
+            const bankCardElements = banksGridContainer.querySelectorAll('.bank-card');
             bankCardElements.forEach(cardElement => {
                 const bankNameElement = cardElement.querySelector('.bank-name');
                 if (!bankNameElement) return;
@@ -39,22 +57,33 @@ function updateStatuses() {
                 if (bankStatusData) {
                     const statusBadgeElement = cardElement.querySelector('.status-badge');
                     const statusIconElement = cardElement.querySelector('.status-icon');
+                    const lastUpdateElement = cardElement.querySelector('.card-last-update');
 
                     if (statusBadgeElement && statusIconElement) {
-                        const isBankOnline = bankStatusData.state === "active";
+                        const isBankOnline = bankStatusData.status === "online";
+                        const statusText = isBankOnline ? "Operativo" : "Con Problemas";
 
-                        statusBadgeElement.textContent = bankStatusData.statusText;
+                        // Actualizar el texto manteniendo el ícono
+                        statusBadgeElement.textContent = statusText;
                         statusBadgeElement.prepend(statusIconElement);
 
+                        // Actualizar clases CSS para el estilo
                         statusBadgeElement.classList.remove('status-online', 'status-offline');
                         statusBadgeElement.classList.add(isBankOnline ? 'status-online' : 'status-offline');
 
+                        // Actualizar el ícono
                         statusIconElement.classList.remove('fa-check-circle', 'fa-times-circle');
                         statusIconElement.classList.add(isBankOnline ? 'fa-check-circle' : 'fa-times-circle');
+                    }
+                    
+                    // Actualizar el indicador de última actualización en la tarjeta
+                    if (lastUpdateElement) {
+                        lastUpdateElement.textContent = `Estado actualizado: ${currentTime}`;
                     }
                 }
             });
 
+            console.log("Estados actualizados correctamente:", currentTime);
         })
         .catch(error => {
             console.error('Error fetching statuses:', error);
@@ -67,10 +96,13 @@ function updateStatuses() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Actualizar al cargar la página
     updateStatuses();
 
-    setInterval(updateStatuses, 600000);
+    // Actualizar cada 2 minutos (120000 ms)
+    setInterval(updateStatuses, 120000);
 
+    // Configurar botón de actualizar
     const refreshButtonElement = document.querySelector('.refresh-section .button');
     if (refreshButtonElement) {
         refreshButtonElement.addEventListener('click', updateStatuses);

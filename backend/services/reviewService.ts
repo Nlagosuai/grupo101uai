@@ -1,6 +1,7 @@
 import { DB_FILE } from '../config.ts';
 import type { Review as Reseña } from '../types.ts';
 import type { Review } from '../types.ts';
+import { banks } from '../config.ts';
 
 // Almacenamiento de reseñas en memoria (se carga desde el archivo)
 let reviews: Review[] = [];
@@ -30,21 +31,21 @@ function assignCategoriesToReviews(reviewsData: any[]): Review[] {
 
         // Analizar el comentario para asignar categorías
         if (comment.includes('lent') || comment.includes('demor') || comment.includes('tard')) {
-            categories.push('slow');
+            categories.push('Lentitud');
         }
         if (comment.includes('acces') || comment.includes('ingres') || comment.includes('entr') || comment.includes('login')) {
-            categories.push('access');
+            categories.push('Problemas de Acceso');
         }
         if (comment.includes('error') || comment.includes('fall') || comment.includes('problem')) {
-            categories.push('error');
+            categories.push('Error en Transacción');
         }
         if (comment.includes('segur') || comment.includes('contrase') || comment.includes('robo')) {
-            categories.push('security');
+            categories.push('Seguridad');
         }
 
-        // Si no se identificó ninguna categoría, asignar "otro"
+        // Si no se identificó ninguna categoría, asignar "Otro"
         if (categories.length === 0) {
-            categories.push('other');
+            categories.push('Otro');
         }
 
         // Retornar la reseña con categorías asignadas y English fields
@@ -119,28 +120,46 @@ export function getAllReviews(): Review[] {
 }
 
 /**
+ * Obtiene todas las reseñas para un banco específico.
+ */
+export function getReviewsByBank(bankName: string): Review[] {
+    return reviews.filter(review => review.bank === bankName);
+}
+
+/**
  * Agrega una nueva reseña a la lista y la guarda en el archivo.
  * Expects the incoming object to potentially use Spanish keys from the form.
  */
 export async function addReview(newReviewData: any): Promise<void> {
+    // Mapeo de sub-calificaciones
+    const subRatings = {
+        facilidadDeUso: newReviewData.facilidadDeUso ? parseInt(newReviewData.facilidadDeUso, 10) : 0,
+        accesibilidad: newReviewData.accesibilidad ? parseInt(newReviewData.accesibilidad, 10) : 0,
+        estabilidad: newReviewData.estabilidad ? parseInt(newReviewData.estabilidad, 10) : 0,
+        precio: newReviewData.precio ? parseInt(newReviewData.precio, 10) : 0,
+        serviciosAlUsuario: newReviewData.serviciosAlUsuario ? parseInt(newReviewData.serviciosAlUsuario, 10) : 0,
+    };
+
     const completeReview: Review = {
         id: crypto.randomUUID(),
         bank: newReviewData.banco,
-        rating: newReviewData.calificación,
-        comment: newReviewData.comentario,
+        rating: newReviewData.calificación ? parseFloat(newReviewData.calificación) : 0,
+        comment: newReviewData.comentario || '',
         date: new Date().toLocaleString(),
         categories: (newReviewData.categorías && newReviewData.categorías.length > 0)
             ? newReviewData.categorías.map((cat: string) => {
+                // Mantener las categorías en español
                 const translationMap: { [key: string]: string } = {
-                    'acceso': 'access',
-                    'lentitud': 'slow',
-                    'error': 'error',
-                    'seguridad': 'security',
-                    'otro': 'other'
+                    'acceso': 'Problemas de Acceso',
+                    'lentitud': 'Lentitud',
+                    'error': 'Error en Transacción',
+                    'seguridad': 'Seguridad',
+                    'otro': 'Otro'
                 };
                 return translationMap[cat.toLowerCase()] || cat;
               })
-            : ['other']
+            : ['Otro'],
+        subRatings: (Object.values(subRatings).some(r => r > 0)) ? subRatings : undefined
     };
 
     reviews.unshift(completeReview);
@@ -153,6 +172,17 @@ export async function addReview(newReviewData: any): Promise<void> {
  */
 export function calculateReportStatistics(banksConfig: { name: string }[]): Record<string, { commonReport: string; count: number; totalReviews: number }> {
     const reportsByBank: Record<string, { commonReport: string; count: number; totalReviews: number }> = {};
+
+    // Mapa de traducción de categorías
+    const categoryTranslations: Record<string, string> = {
+        'slow': 'Lentitud',
+        'access': 'Problemas de Acceso',
+        'error': 'Error en Transacción',
+        'security': 'Seguridad',
+        'other': 'Otro',
+        'No specific category': 'Sin categoría específica',
+        'No reports': 'Sin reportes'
+    };
 
     banksConfig.forEach(bank => {
         const bankReviews = reviews.filter(r => r.bank === bank.name);
@@ -176,14 +206,17 @@ export function calculateReportStatistics(banksConfig: { name: string }[]): Reco
                 }
             }
 
+            // Traducir la categoría común
+            const translatedCategory = categoryTranslations[commonCategory] || commonCategory;
+
             reportsByBank[bank.name] = {
-                commonReport: commonCategory,
+                commonReport: translatedCategory,
                 count: maxCount,
                 totalReviews: bankReviews.length
             };
         } else {
             reportsByBank[bank.name] = {
-                commonReport: "No reports",
+                commonReport: categoryTranslations["No reports"],
                 count: 0,
                 totalReviews: 0
             };
@@ -196,20 +229,20 @@ export function calculateReportStatistics(banksConfig: { name: string }[]): Reco
 /**
  * Calcula los promedios de calificación por banco.
  */
-export function calculateAverageRatings(banksConfig: { name: string }[]): Record<string, { average: string; count: number }> {
-    const averages: Record<string, { average: string; count: number }> = {};
+export function calculateAverageRatings(banksConfig: { name: string }[]): Record<string, { average: number; count: number }> {
+    const averages: Record<string, { average: number; count: number }> = {};
 
     banksConfig.forEach(bank => {
         const bankReviews = reviews.filter(r => r.bank === bank.name);
         if (bankReviews.length > 0) {
-            const total = bankReviews.reduce((sum, r) => sum + parseInt(r.rating, 10), 0);
+            const total = bankReviews.reduce((sum, r) => sum + r.rating, 0);
             averages[bank.name] = {
-                average: (total / bankReviews.length).toFixed(1),
+                average: total / bankReviews.length,
                 count: bankReviews.length
             };
         } else {
             averages[bank.name] = {
-                average: "0.0",
+                average: 0.0,
                 count: 0
             };
         }
@@ -220,32 +253,110 @@ export function calculateAverageRatings(banksConfig: { name: string }[]): Record
 
 /**
  * Generates leaderboard data based on average review scores.
+ * @param sortBy The category to sort the leaderboard by. Defaults to 'averageRating'.
  */
-export function getLeaderboardData(): { bank: string; averageRating: number; rank: number }[] {
+export function getLeaderboardData(sortBy: string = 'averageRating'): { 
+    bank: string; 
+    averageRating: number; 
+    rank: number;
+    subRatings: {
+        facilidadDeUso: number;
+        accesibilidad: number;
+        estabilidad: number;
+        precio: number;
+        serviciosAlUsuario: number;
+    };
+    reviewCount: number;
+}[] {
     if (!reviews || reviews.length === 0) {
         return [];
     }
 
-    const bankRatings: { [key: string]: { totalRating: number; reviewCount: number } } = {};
+    const bankRatings: { [key: string]: { 
+        totalRating: number; 
+        reviewCount: number;
+        subRatingTotals: {
+            facilidadDeUso: number;
+            accesibilidad: number;
+            estabilidad: number;
+            precio: number;
+            serviciosAlUsuario: number;
+        };
+        subRatingCounts: {
+            facilidadDeUso: number;
+            accesibilidad: number;
+            estabilidad: number;
+            precio: number;
+            serviciosAlUsuario: number;
+        };
+    } } = {};
 
+    // Initialize all banks from config to ensure they appear even with 0 reviews
+    for (const bank of banks) {
+        bankRatings[bank.name] = { 
+            totalRating: 0, 
+            reviewCount: 0,
+            subRatingTotals: { facilidadDeUso: 0, accesibilidad: 0, estabilidad: 0, precio: 0, serviciosAlUsuario: 0 },
+            subRatingCounts: { facilidadDeUso: 0, accesibilidad: 0, estabilidad: 0, precio: 0, serviciosAlUsuario: 0 }
+        };
+    }
+
+    // Populate with data from existing reviews
     reviews.forEach(review => {
-        if (!bankRatings[review.bank]) {
-            bankRatings[review.bank] = { totalRating: 0, reviewCount: 0 };
+        if (bankRatings[review.bank]) {
+            bankRatings[review.bank].totalRating += review.rating;
+            bankRatings[review.bank].reviewCount++;
+    
+            if (review.subRatings) {
+                for (const [key, value] of Object.entries(review.subRatings)) {
+                    if (value > 0) {
+                        (bankRatings[review.bank].subRatingTotals as any)[key] += value;
+                        (bankRatings[review.bank].subRatingCounts as any)[key]++;
+                    }
+                }
+            }
         }
-        bankRatings[review.bank].totalRating += parseInt(review.rating, 10);
-        bankRatings[review.bank].reviewCount++;
     });
 
-    const leaderboard = Object.entries(bankRatings)
-        .map(([bank, data]) => ({
+    const aggregatedData = Object.keys(bankRatings).map(bank => {
+        const data = bankRatings[bank];
+        const subRatingsAvg = {
+            facilidadDeUso: data.subRatingCounts.facilidadDeUso > 0 ? data.subRatingTotals.facilidadDeUso / data.subRatingCounts.facilidadDeUso : 0,
+            accesibilidad: data.subRatingCounts.accesibilidad > 0 ? data.subRatingTotals.accesibilidad / data.subRatingCounts.accesibilidad : 0,
+            estabilidad: data.subRatingCounts.estabilidad > 0 ? data.subRatingTotals.estabilidad / data.subRatingCounts.estabilidad : 0,
+            precio: data.subRatingCounts.precio > 0 ? data.subRatingTotals.precio / data.subRatingCounts.precio : 0,
+            serviciosAlUsuario: data.subRatingCounts.serviciosAlUsuario > 0 ? data.subRatingTotals.serviciosAlUsuario / data.subRatingCounts.serviciosAlUsuario : 0,
+        };
+        return {
             bank,
-            averageRating: parseFloat((data.totalRating / data.reviewCount).toFixed(1)),
-        }))
-        .sort((a, b) => b.averageRating - a.averageRating); // Sort descending by average rating
+            averageRating: data.reviewCount > 0 ? data.totalRating / data.reviewCount : 0,
+            subRatings: subRatingsAvg,
+            reviewCount: data.reviewCount,
+        };
+    });
+
+    // Rank the banks based on the selected category
+    const leaderboard = aggregatedData.sort((a, b) => {
+        const valA = sortBy === 'averageRating' ? a.averageRating : (a.subRatings as any)[sortBy] || 0;
+        const valB = sortBy === 'averageRating' ? b.averageRating : (b.subRatings as any)[sortBy] || 0;
+        
+        // Primary sort by the selected rating
+        if (valB !== valA) {
+            return valB - valA;
+        }
+        
+        // Tie-breaker: sort by main average rating if sub-ratings are equal
+        if (a.averageRating !== b.averageRating) {
+            return b.averageRating - a.averageRating;
+        }
+
+        // Final tie-breaker: sort by review count
+        return b.reviewCount - a.reviewCount;
+    });
 
     // Assign ranks
-    return leaderboard.map((item, index) => ({
-        ...item,
+    return leaderboard.map((bankData, index) => ({
+        ...bankData,
         rank: index + 1,
     }));
 } 

@@ -2,9 +2,97 @@ import { Context, helpers } from "https://deno.land/x/oak@v11.1.0/mod.ts";
 import { banks } from '../config.ts';
 import { getAllReviews, addReview, calculateReportStatistics, calculateAverageRatings } from '../services/reviewService.ts';
 import { getBankStatuses, getBankConfig } from '../services/bankService.ts';
+import { getRecentProblemStatistics, getAllReports, problemTypeTranslations, getReportsByBank } from '../services/problemReportService.ts';
 import { renderPage } from '../utils/templateUtils.ts';
 import { renderStars, getBankImage } from '../utils/renderUtils.ts';
 import type { Review, BankInfo, BankConfig } from '../types.ts';
+import { getBenefitsByBank } from "../services/benefitsService.ts";
+
+/**
+ * Muestra la página de resumen para descargar PDFs.
+ */
+export function showSummaryPage(ctx: Context) {
+    const banksList = banks.map(bank => ({
+        name: bank.name,
+        icon: bank.icon,
+        slug: encodeURIComponent(bank.name)
+    }));
+
+    const bodyContent = `
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Resumen de Bancos</h1>
+            <p>Descarga un informe completo en PDF con toda la información relevante de cada banco.</p>
+        </div>
+
+        <div class="summary-grid">
+            ${banksList.map(bank => `
+                <div class="summary-card">
+                    <img src="${bank.icon}" alt="Logo de ${bank.name}" class="summary-bank-logo">
+                    <h2 class="summary-bank-name">${bank.name}</h2>
+                    <p class="summary-description">Informe detallado sobre servicios, reseñas, reportes y beneficios.</p>
+                    <a href="/api/summary/${bank.slug}/pdf" class="button button-primary" download>
+                        <i class="fas fa-file-pdf"></i> Descargar PDF
+                    </a>
+                </div>
+            `).join('')}
+        </div>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: "Resumen de Bancos",
+        bodyContent,
+        styles: ['/css/summary.css']
+    });
+}
+
+/**
+ * Muestra la página de inicio simple.
+ */
+export function showSimpleHomePage(ctx: Context) {
+    // Servir el archivo index.html estático
+    ctx.response.body = renderPage({
+        title: "Inicio",
+        bodyContent: `
+        <main class="main-content">
+            <div class="home-container">
+                <div class="home-header">
+                    <h1>Bienvenido a Monitor de Bancos</h1>
+                    <p>Tu herramienta para monitorear el estado de los servicios bancarios</p>
+                </div>
+                
+                <div class="feature-cards">
+                    <a href="/status" class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h2>Estados</h2>
+                        <p>Consulta el estado actual de los servicios bancarios</p>
+                    </a>
+                    
+                    <a href="/leaderboard" class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <h2>Leaderboard</h2>
+                        <p>Descubre los bancos mejor valorados por los usuarios</p>
+                    </a>
+                    
+                    <a href="/benefits" class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-gift"></i>
+                        </div>
+                        <h2>Beneficios</h2>
+                        <p>Conoce los beneficios exclusivos de cada banco</p>
+                    </a>
+                </div>
+            </div>
+        </main>
+        `,
+        styles: ['/css/home.css']
+    });
+}
 
 /**
  * Muestra la página principal (Home/Estados).
@@ -12,6 +100,31 @@ import type { Review, BankInfo, BankConfig } from '../types.ts';
 export async function showHomePage(ctx: Context) {
     const bankStatuses = await getBankStatuses();
     const averageRatings = calculateAverageRatings(banks);
+    const reportsByBank = calculateReportStatistics(banks);
+    const problemStats = await getRecentProblemStatistics(banks);
+    const reviews = getAllReviews();
+    
+    // Organizar reseñas por banco para la sección de reseñas
+    const reviewsByBank: Record<string, { reviews: Review[], average: number, count: number }> = {};
+    
+    banks.forEach(bank => {
+        reviewsByBank[bank.name] = { reviews: [], average: 0.0, count: 0 };
+    });
+    
+    reviews.forEach(review => {
+        if (reviewsByBank[review.bank]) {
+            reviewsByBank[review.bank].reviews.push(review);
+        }
+    });
+    
+    Object.keys(reviewsByBank).forEach(bankName => {
+        const bankData = reviewsByBank[bankName];
+        if (bankData.reviews.length > 0) {
+            const total = bankData.reviews.reduce((sum, r) => sum + r.rating, 0);
+            bankData.average = total / bankData.reviews.length;
+            bankData.count = bankData.reviews.length;
+        }
+    });
 
     const bodyContent = `
     <main class="main-content">
@@ -39,26 +152,94 @@ export async function showHomePage(ctx: Context) {
         <div class="banks-grid">
             ${bankStatuses.map((status) => {
                 const isOnline = status.state === "active";
-                const ratingInfo = averageRatings[status.name] || { average: "0.0", count: 0 };
+                const ratingInfo = averageRatings[status.name] || { average: 0.0, count: 0 };
                 const stars = renderStars(ratingInfo.average);
+                const problemInfo = problemStats[status.name] || { commonReport: "Sin reportes recientes", count: 0, totalReports: 0 };
+                const bankReviews = reviewsByBank[status.name]?.reviews || [];
 
                 return `
-                    <div class="bank-card">
+                    <div class="bank-card" id="bank-${encodeURIComponent(status.name)}">
+                        <div class="bank-header">
                         <img src="${status.icon}" alt="${status.name} Logo" class="bank-logo">
                         <h2 class="bank-name">${status.name}</h2>
                         <div class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">
                             <i class="status-icon fas ${isOnline ? 'fa-check-circle' : 'fa-times-circle'}"></i>
                             ${status.statusText}
                         </div>
-                        <div class="bank-rating">
-                            ${ratingInfo.average}
-                            <div class="bank-stars">${stars}</div>
                         </div>
-                        ${ratingInfo.count > 0 ?
-                            `<div class="reviews-count">Basado en ${ratingInfo.count} reseña${ratingInfo.count !== 1 ? 's' : ''}</div>` :
-                            '<div class="reviews-count">Sin reseñas</div>'}
-                        <a href="/evaluate/${encodeURIComponent(status.name)}" class="button">Evaluar Servicio</a>
-                        <a href="/reviews/${encodeURIComponent(status.name)}" class="button" style="margin-top: 0.5rem;">Ver Reseñas</a>
+
+                        <div class="bank-tabs">
+                            <button class="tab-btn active" data-tab="info-${encodeURIComponent(status.name)}">Información</button>
+                            <button class="tab-btn" data-tab="stats-${encodeURIComponent(status.name)}">Estadísticas</button>
+                            <button class="tab-btn" data-tab="reviews-${encodeURIComponent(status.name)}">Reseñas</button>
+                        </div>
+
+                        <div class="tab-content active" id="info-${encodeURIComponent(status.name)}">
+                            <div class="bank-rating">
+                                ${ratingInfo.average.toFixed(1)}
+                                <div class="bank-stars">${stars}</div>
+                            </div>
+                            ${ratingInfo.count > 0 ?
+                                `<div class="reviews-count">Basado en ${ratingInfo.count} reseña${ratingInfo.count !== 1 ? 's' : ''}</div>` :
+                                '<div class="reviews-count">Sin reseñas</div>'}
+                            <div class="buttons-container">
+                                <a href="/evaluate/${encodeURIComponent(status.name)}" class="button">Evaluar Servicio</a>
+                                <a href="/report-problem/${encodeURIComponent(status.name)}" class="button button-secondary">Reportar un Problema</a>
+                            </div>
+                            <div class="card-last-update">Estado actualizado</div>
+                        </div>
+
+                        <div class="tab-content" id="stats-${encodeURIComponent(status.name)}">
+                            <div class="bank-stats-content">
+                                <h3>Reportes de Problemas</h3>
+                                ${problemInfo.totalReports > 0 ? `
+                                    <div class="report-common">
+                                        <strong>Problema más común:</strong> ${problemInfo.commonReport}
+                                    </div>
+                                    <div class="report-stats">
+                                        <span>Total de reportes: ${problemInfo.totalReports}</span>
+                                    </div>
+                                    <a href="/reports/${encodeURIComponent(status.name)}" class="button view-all-btn">Ver todos los reportes</a>
+                                ` : `
+                                    <div class="no-stats">Aún no hay reportes para este banco.</div>
+                                    <a href="/report-problem/${encodeURIComponent(status.name)}" class="button">Sé el primero en reportar</a>
+                                `}
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="reviews-${encodeURIComponent(status.name)}">
+                            <div class="bank-reviews-content">
+                                ${bankReviews.length > 0 ? `
+                                    <div class="reviews-mini-grid">
+                                        ${bankReviews.slice(0, 1).map(review => {
+                                            const reviewStars = renderStars(review.rating);
+                                            return `
+                                            <div class="review-mini-card">
+                                                <div class="review-date">${review.date}</div>
+                                                <div class="review-rating">${reviewStars}</div>
+                                                <div class="review-comment">
+                                                    <p>${review.comment.length > 100 ? review.comment.substring(0, 100) + '...' : review.comment}</p> 
+                                                </div>
+                                                <div class="review-categories">
+                                                    ${review.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('')}
+                                                </div>
+                                            </div>
+                                            `
+                                        }).join('')}
+                                    </div>
+                                    ${bankReviews.length > 1 ? `
+                                        <a href="/reviews/${encodeURIComponent(status.name)}" class="button view-all-btn">
+                                            Ver todas las ${bankReviews.length} reseñas
+                                        </a>
+                                    ` : ''}
+                                ` : `
+                                    <div class="no-reviews-message">
+                                        <p>Aún no hay reseñas para este banco.</p>
+                                        <a href="/evaluate/${encodeURIComponent(status.name)}" class="button">Sé el primero en evaluar</a>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
                     </div>
                 `;
             }).join('')}
@@ -67,10 +248,70 @@ export async function showHomePage(ctx: Context) {
     `;
 
     ctx.response.body = renderPage({
-        title: "Inicio",
+        title: "Monitor de Bancos",
         bodyContent,
-        styles: ['/css/status.css'],
-        scripts: ['/js/status.js']
+        styles: ['/css/status.css', '/css/bank-card.css'],
+        scripts: ['/js/status.js', '/js/bank-tabs.js']
+    });
+}
+
+/**
+ * Muestra la página con todos los reportes de problemas para un banco específico.
+ */
+export async function showBankReportsPage(ctx: Context) {
+    const bankName = helpers.getQuery(ctx, { mergeParams: true }).banco;
+    const bankConfig = getBankConfig(bankName);
+
+    if (!bankConfig) {
+        ctx.response.status = 404;
+        ctx.response.body = "Banco no encontrado";
+        return;
+    }
+
+    const bankReports = await getReportsByBank(bankName);
+    // Ordenar los reportes por fecha, de más reciente a más antiguo
+    bankReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const bodyContent = `
+    <main class="main-content">
+        <a href="/status" class="back-link">
+            <i class="fas fa-arrow-left"></i> Volver a Estados
+        </a>
+        <div class="page-header">
+            <img src="${bankConfig.icon}" alt="Logo de ${bankName}" class="page-header-logo">
+            <h1 class="page-title">Reportes de Problemas para ${bankName}</h1>
+            <p>Aquí se listan todos los reportes de problemas enviados por los usuarios para ${bankName}.</p>
+        </div>
+        <div class="reports-list">
+            ${bankReports.length > 0 ? bankReports.map(report => {
+                const translatedProblemType = problemTypeTranslations[report.problemType] || report.problemType;
+                const categoryClass = `category--${report.problemType}`;
+
+                return `
+                <div class="report-card">
+                    <div class="report-body">
+                        <p><strong>Categoría:</strong> <span class="report-category ${categoryClass}">${translatedProblemType}</span></p>
+                        ${report.description ? `<p class="report-comment"><strong>Comentario:</strong> ${report.description}</p>` : ''}
+                    </div>
+                    <div class="report-footer">
+                        <span class="report-timestamp">Reportado el: ${new Date(report.date).toLocaleString()}</span>
+                    </div>
+                </div>
+                `;
+            }).join('') : `
+                <div class="no-reports-message">
+                    <p>No hay reportes de problemas para mostrar para este banco.</p>
+                </div>
+            `}
+        </div>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: `Reportes para ${bankName}`,
+        bodyContent,
+        styles: ['/css/base-styles.css', '/css/reports-list.css'],
+        scripts: []
     });
 }
 
@@ -135,7 +376,7 @@ export function showReviewsPage(ctx: Context) {
     Object.keys(reviewsByBank).forEach(bankName => {
         const bankData = reviewsByBank[bankName];
         if (bankData.reviews.length > 0) {
-            const total = bankData.reviews.reduce((sum, r) => sum + parseInt(r.rating, 10), 0);
+            const total = bankData.reviews.reduce((sum, r) => sum + r.rating, 0);
             bankData.average = (total / bankData.reviews.length).toFixed(1);
             bankData.count = bankData.reviews.length;
         }
@@ -244,20 +485,6 @@ export function showBankReviewsPage(ctx: Context) {
             <i class="fas fa-arrow-left"></i> Volver a Todas las Reseñas
         </a>
 
-        <div class="bank-header card">
-            <img src="${bankConfig.icon}" alt="${bankConfig.name} Logo" class="bank-logo">
-            <div class="bank-info">
-                <h1 class="bank-name">Reseñas de ${bankConfig.name}</h1>
-                <div class="bank-rating">
-                    ${average}
-                    <div class="bank-stars">${averageStars}</div>
-                </div>
-            </div>
-            <div class="bank-stats">
-                <span class="reviews-count">${count} reseña${count !== 1 ? 's' : ''}</span>
-                <a href="/evaluate/${encodeURIComponent(bankConfig.name)}" class="button">Evaluar Servicio</a>
-            </div>
-        </div>
 
         <div class="reviews-grid">
             ${count === 0 ? `
@@ -323,43 +550,46 @@ export function showEvaluatePage(ctx: Context) {
             <form class="evaluation-form" id="evaluationForm" action="/evaluate/${encodeURIComponent(bankName)}" method="POST">
                 <div class="form-group">
                     <label>¿Cómo calificarías tu experiencia?</label>
-                    <div class="star-rating">
+                    <div class="star-rating" data-rating-group="calificación">
+                        <input type="hidden" name="calificación" class="rating-value" value="0">
                         <div class="stars">
                             ${[1, 2, 3, 4, 5].map(n => `
-                                <input type="radio" name="calificacion" value="${n}" id="rating${n}" required hidden>
-                                <label for="rating${n}" class="star" data-rating="${n}">
-                                    <i class="fas fa-star"></i>
-                                </label>
+                                <span class="star" data-rating="${n}"><i class="far fa-star"></i></span>
                             `).join('')}
                         </div>
-                        <div class="rating-text">Selecciona una calificación</div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Categorías (opcional)</label>
-                    <div class="category-tags">
-                        ${[
-                            { value: 'acceso', text: 'Problemas de Acceso' },
-                            { value: 'lentitud', text: 'Lentitud' },
-                            { value: 'error', text: 'Error en Transacción' },
-                            { value: 'seguridad', text: 'Seguridad' },
-                            { value: 'otro', text: 'Otro' }
-                        ].map(cat => `
-                            <input type="checkbox" name="categorias" value="${cat.value}" id="cat${cat.value}" hidden>
-                            <label for="cat${cat.value}" class="category-tag">${cat.text}</label>
-                        `).join('')}
-                    </div>
+                <div class="sub-ratings-container">
+                    <h3 class="sub-ratings-title">Calificaciones Detalladas</h3>
+                    ${[
+                        { name: 'facilidadDeUso', text: 'Facilidad de Uso' },
+                        { name: 'accesibilidad', text: 'Accesibilidad' },
+                        { name: 'estabilidad', text: 'Estabilidad' },
+                        { name: 'precio', text: 'Precio' },
+                        { name: 'serviciosAlUsuario', text: 'Servicios al Usuario' }
+                    ].map(sub => `
+                        <div class="form-group sub-rating-group">
+                            <label>${sub.text}</label>
+                            <div class="star-rating-small" data-rating-group="${sub.name}">
+                                <input type="hidden" name="${sub.name}" class="rating-value" value="0">
+                                <div class="stars">
+                                    ${[1, 2, 3, 4, 5].map(n => `
+                                        <span class="star" data-rating="${n}"><i class="far fa-star"></i></span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
 
                 <div class="form-group">
-                    <label for="comentario">Describe tu experiencia</label>
+                    <label for="comentario">¿Cómo fue tu experiencia? <span class="label-optional">(Opcional)</span></label>
                     <textarea
                         id="comentario"
                         name="comentario"
                         class="form-control"
-                        placeholder="Cuéntanos más sobre tu experiencia con el servicio..."
-                        required
+                        placeholder="Describe detalladamente tu experiencia general con el banco..."
                     ></textarea>
                 </div>
 
@@ -378,75 +608,55 @@ export function showEvaluatePage(ctx: Context) {
     ctx.response.body = renderPage({
         title: `Evaluar ${bankName}`,
         bodyContent,
-        styles: ['/css/evaluate.css'],
+        styles: ['/css/evaluate.css', '/css/forms.css'],
         scripts: ['/js/evaluate.js']
     });
 }
 
 /**
- * Muestra la página para reportar un error.
+ * Muestra la página para reportar un problema.
  */
-export function showReportPage(ctx: Context) {
+export function showReportProblemPage(ctx: Context) {
+    const bankName = helpers.getQuery(ctx, { mergeParams: true }).banco;
+    const bankConfig = getBankConfig(bankName);
+
+    if (!bankConfig) {
+        ctx.response.status = 404;
+        ctx.response.body = "Banco no encontrado.";
+        return;
+    }
+
     const bodyContent = `
     <main class="main-content">
-         <a href="/status" class="back-link">
+        <a href="/status" class="back-link">
             <i class="fas fa-arrow-left"></i> Volver a Estados
         </a>
-        <div class="report-card card">
-            <div class="report-header">
-                <h1>Reportar un Error</h1>
-                <p>Ayúdanos a mejorar el servicio reportando los problemas que encuentres.</p>
-            </div>
+        <div class="page-header">
+            <h1 class="page-title">Reportar un Problema con ${bankConfig.name}</h1>
+            <p>Describe el problema que encontraste para que otros usuarios estén al tanto.</p>
+        </div>
 
-            <form class="report-form" id="reportForm">
+        <div class="form-container">
+            <form id="report-problem-form" action="/api/report-problem" method="POST">
+                <input type="hidden" name="banco" value="${bankConfig.name}">
+                
                 <div class="form-group">
-                    <label for="banco">Selecciona el Banco</label>
-                    <select id="banco" name="banco" class="form-control" required>
-                        <option value="">Selecciona un banco...</option>
-                        ${banks.map(b => `<option value="${b.name}">${b.name}</option>`).join('')}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Prioridad del Error</label>
-                    <input type="hidden" id="prioridad" name="prioridad" value="">
-                    <div class="priority-selector">
-                        <div class="priority-option" data-priority="baja">Baja</div>
-                        <div class="priority-option" data-priority="media">Media</div>
-                        <div class="priority-option" data-priority="alta">Alta</div>
+                    <label>Tipo de Problema</label>
+                    <input type="hidden" id="problem-type" name="problemType" value="">
+                    <div class="category-buttons">
+                        <button type="button" class="category-btn" data-value="disponibilidad">Disponibilidad</button>
+                        <button type="button" class="category-btn" data-value="calidad_de_servicio">Calidad de Servicio</button>
+                        <button type="button" class="category-btn" data-value="facilidad_de_desuscripcion">Facilidad de Desuscripción</button>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="tipo">Tipo de Error</label>
-                    <select id="tipo" name="tipo" class="form-control" required>
-                        <option value="">Selecciona el tipo de error...</option>
-                        <option value="acceso">Problemas de Acceso</option>
-                        <option value="lentitud">Lentitud en el Servicio</option>
-                        <option value="transaccion">Error en Transacción</option>
-                        <option value="seguridad">Problema de Seguridad</option>
-                        <option value="otro">Otro</option>
-                    </select>
+                    <label for="problem-description">Comentario <span class="label-optional">(Opcional)</span></label>
+                    <textarea id="problem-description" name="problemDescription" class="form-control" rows="6" placeholder="Describe tu experiencia..."></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="descripcion">Descripción del Error</label>
-                    <textarea
-                        id="descripcion"
-                        name="descripcion"
-                        class="form-control"
-                        placeholder="Describe detalladamente el error que has encontrado..."
-                        required
-                    ></textarea>
-                </div>
-
-                <div class="buttons-container">
                     <button type="submit" class="button">Enviar Reporte</button>
-                    <a href="/estados" class="button button-secondary">Cancelar</a>
-                </div>
-
-                <div class="success-message" id="successMessage">
-                    ¡Gracias por tu reporte! Lo revisaremos lo antes posible.
                 </div>
             </form>
         </div>
@@ -454,10 +664,10 @@ export function showReportPage(ctx: Context) {
     `;
 
     ctx.response.body = renderPage({
-        title: "Reportar Error",
+        title: `Reportar Problema - ${bankConfig.name}`,
         bodyContent,
-        styles: ['/css/report.css'],
-        scripts: ['/js/report.js']
+        styles: ['/css/forms.css'],
+        scripts: ['/js/report-problem.js']
     });
 }
 
@@ -482,21 +692,29 @@ export async function handleEvaluateSubmit(ctx: Context) {
             return;
         }
         const formData = await body.value;
-        const ratingValue = formData.get("calificacion");
-        const commentValue = formData.get("comentario");
-        const categoryValues = formData.getAll("categorias");
+        const ratingValue = formData.get("calificación");
 
-        if (!ratingValue || !commentValue) {
+        // Validar que la calificación principal exista
+        if (!ratingValue || parseFloat(ratingValue) === 0) {
             ctx.response.status = 400;
-            ctx.response.body = { message: "La calificación y el comentario son requeridos" };
+            ctx.response.body = { message: "La calificación principal es requerida." };
             return;
         }
+        
+        const commentValue = formData.get("comentario");
+        const categoryValues = formData.getAll("categorías");
 
         const reviewData = {
             banco: bankName,
             calificación: ratingValue,
             comentario: commentValue,
-            categorías: categoryValues
+            categorías: categoryValues,
+            // Sub-ratings
+            facilidadDeUso: formData.get("facilidadDeUso"),
+            accesibilidad: formData.get("accesibilidad"),
+            estabilidad: formData.get("estabilidad"),
+            precio: formData.get("precio"),
+            serviciosAlUsuario: formData.get("serviciosAlUsuario")
         };
 
         await addReview(reviewData);
@@ -504,7 +722,7 @@ export async function handleEvaluateSubmit(ctx: Context) {
         ctx.response.redirect(`/thank-you?banco=${encodeURIComponent(bankName)}`);
 
     } catch (error) {
-        console.error("Error processing evaluation submission:", error);
+        console.error("Error procesando la evaluación:", error);
         ctx.response.status = 500;
         ctx.response.body = renderPage({
              title: "Error",
@@ -542,139 +760,146 @@ export function showThankYouPage(ctx: Context) {
         bodyContent,
         styles: ['/css/thank-you.css'],
         scripts: ['/js/thank-you.js']
-    }, 'agradecimiento-page');
-}
-
-/**
- * Muestra la página del leaderboard.
- */
-export function showLeaderboardPage(ctx: Context) {
-    // Los datos del leaderboard se obtendrán mediante una solicitud fetch desde el frontend.
-    // Aquí solo servimos la estructura HTML básica.
-    const bodyContent = `
-    <main class="main-content" id="leaderboard-container">
-        <section id="leaderboard-section">
-            <h2>Ranking de Bancos por Calificación Promedio</h2>
-            <table id="leaderboard-table">
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Banco</th>
-                        <th>Calificación Promedio</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="3">Cargando leaderboard...</td></tr>
-                </tbody>
-            </table>
-        </section>
-    </main>
-    `;
-
-    ctx.response.body = renderPage({
-        title: "Leaderboard de Bancos",
-        bodyContent,
-        styles: ['/css/leaderboard.css'], // Asegúrate que el CSS del leaderboard está referenciado
-        scripts: ['/js/leaderboard.js']    // Y el JS también
     });
 }
 
 /**
- * Muestra la página de gestión de beneficios mensuales.
+ * Muestra la página de leaderboard.
+ */
+export function showLeaderboardPage(ctx: Context) {
+    const bodyContent = `
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Leaderboard de Bancos</h1>
+            <p>Clasificación de los bancos según la opinión de los usuarios.</p>
+        </div>
+
+        <div class="leaderboard-filters">
+            <button class="filter-btn active" data-category="averageRating">Calificación General</button>
+            <button class="filter-btn" data-category="facilidadDeUso">Facilidad de Uso</button>
+            <button class="filter-btn" data-category="accesibilidad">Accesibilidad</button>
+            <button class="filter-btn" data-category="estabilidad">Estabilidad</button>
+            <button class="filter-btn" data-category="precio">Precio</button>
+            <button class="filter-btn" data-category="serviciosAlUsuario">Servicios al Usuario</button>
+        </div>
+
+        <div class="leaderboard-list-container">
+            <div id="leaderboard-list">
+                <!-- Las tarjetas del leaderboard se insertarán dinámicamente aquí -->
+            </div>
+            <div id="loading-indicator" class="loading-indicator">
+                <div class="spinner"></div>
+                <span>Cargando...</span>
+            </div>
+            <div id="error-indicator" class="error-indicator" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>No se pudo cargar el leaderboard. Inténtalo de nuevo más tarde.</span>
+            </div>
+        </div>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: "Leaderboard",
+        bodyContent,
+        styles: ['/css/leaderboard.css'],
+        scripts: ['/js/leaderboard.js']
+    });
+}
+
+/**
+ * Muestra la página de beneficios mensuales.
  */
 export function showBenefitsPage(ctx: Context) {
-    // The actual content of benefits.html is mostly static initially,
-    // dynamic parts will be handled by frontend JavaScript fetching from API endpoints.
     const bodyContent = `
     <main class="main-content" id="benefits-page-container">
-        <section id="benefits-management-section">
-            <h2>Administrar Beneficios Mensuales</h2>
-            <p>
-                Aquí podrás agregar, editar o eliminar los beneficios ofrecidos cada mes.
+        <section id="benefits-header">
+            <h1>Beneficios Bancarios</h1>
+            <p class="benefits-description">
+                Selecciona un banco para descubrir los beneficios que tiene para ti.
             </p>
-            
-            <!-- Year and Month Selector -->
-            <div id="benefits-controls" class="controls-container card">
-                <h3>Seleccionar Mes y Año</h3>
-                <form id="month-year-selector-form">
-                    <div class="form-group">
-                        <label for="year-select">Año:</label>
-                        <input type="number" id="year-select" name="year" value="${new Date().getFullYear()}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="month-select">Mes:</label>
-                        <select id="month-select" name="month" required>
-                            ${[...Array(12).keys()].map(i => `
-                            <option value="${i + 1}" ${i + 1 === (new Date().getMonth() + 1) ? 'selected' : ''}>
-                                ${new Date(0, i).toLocaleString('es-ES', { month: 'long' })}
-                            </option>`).join('')}
-                        </select>
-                    </div>
-                    <button type="button" id="load-benefits-button" class="button">Cargar Beneficios</button>
-                </form>
-            </div>
+        </section>
 
-            <!-- Form to Add/Edit Benefit -->
-            <div id="benefit-form-container" class="card" style="display: none;">
-                <h3 id="benefit-form-title">Agregar Nuevo Beneficio</h3>
-                <form id="benefit-form">
-                    <input type="hidden" id="benefit-id" name="benefitId">
-                    <div class="form-group">
-                        <label for="benefit-name">Nombre del Beneficio:</label>
-                        <input type="text" id="benefit-name" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-description">Descripción:</label>
-                        <textarea id="benefit-description" name="description" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-category">Categoría:</label>
-                        <input type="text" id="benefit-category" name="category" placeholder="Ej: viajes, comida, descuentos">
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-bank">Banco Asociado (Opcional):</label>
-                        <input type="text" id="benefit-bank" name="bankAssociation" placeholder="Ej: Banco XYZ">
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-valid-from">Válido Desde (Opcional):</label>
-                        <input type="date" id="benefit-valid-from" name="validFrom">
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-valid-to">Válido Hasta (Opcional):</label>
-                        <input type="date" id="benefit-valid-to" name="validTo">
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-details-url">URL Detalles (Opcional):</label>
-                        <input type="url" id="benefit-details-url" name="detailsUrl" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label for="benefit-terms">Términos y Condiciones (Opcional):</label>
-                        <textarea id="benefit-terms" name="termsAndConditions" rows="2"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="button">Guardar Beneficio</button>
-                        <button type="button" id="cancel-edit-button" class="button button-secondary" style="display:none;">Cancelar Edición</button>
-                    </div>
-                </form>
+        <section id="bank-selector-container" class="card">
+             <div class="bank-logos-grid">
+                ${banks.map(bank => `
+                    <button class="bank-logo-btn" data-bank="${bank.name}" aria-label="Beneficios de ${bank.name}">
+                        <img src="${bank.icon}" alt="Logo ${bank.name}">
+                        <span>${bank.name}</span>
+                    </button>
+                `).join('')}
             </div>
+        </section>
+        
+        <section id="benefits-content" class="hidden">
+            <div id="selected-bank-header" class="card"></div>
 
-            <button type="button" id="show-add-benefit-form-button" class="button" style="margin-top: 1rem; display: none;">Agregar Nuevo Beneficio al Mes Seleccionado</button>
-            
-            <!-- Benefits Listing Area -->
-            <div id="benefits-list-container" class="card" style="margin-top: 1rem;">
-                <h3>Beneficios del Mes Seleccionado</h3>
-                <div id="benefits-list">
-                    <p>Selecciona un mes y año para ver los beneficios, o para agregar nuevos.</p>
+            <section id="benefits-filter">
+                <div class="filter-container card">
+                    <h3>Filtrar Beneficios</h3>
+                    <div class="filter-controls">
+                        <!-- El filtro de banco ahora se maneja por la selección principal -->
+                        <input type="hidden" id="bank-filter" value="all">
+
+                        <div class="filter-group">
+                            <label for="category-filter">Categoría:</label>
+                            <select id="category-filter">
+                                <option value="all">Todas las categorías</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="day-filter">Día:</label>
+                            <select id="day-filter">
+                                <option value="all">Todos los días</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+            
+            <section id="benefits-display">
+                <div id="benefits-list" class="benefits-container">
+                    <p class="loading-message">Cargando beneficios...</p>
+                </div>
+            </section>
         </section>
     </main>
     `;
 
     ctx.response.body = renderPage({
-        title: "Gestión de Beneficios",
+        title: "Beneficios Bancarios",
         bodyContent,
-        styles: ['/css/benefits.css', '/css/forms.css'], // Assuming a general forms.css might be useful
+        styles: ['/css/benefits.css', '/css/forms.css'],
         scripts: ['/js/benefits.js']
+    });
+}
+
+/**
+ * Muestra la página de agradecimiento después de enviar un reporte.
+ */
+export function showThankYouReportPage(ctx: Context) {
+    const bankName = helpers.getQuery(ctx, { mergeParams: true }).banco || 'el banco';
+
+    const bodyContent = `
+    <main class="main-content success-card">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h1 class="success-title">¡Gracias por tu reporte!</h1>
+        <p class="success-message">
+            Tu reporte sobre ${bankName} ha sido recibido. La comunidad te lo agradece.
+        </p>
+        <a href="/status" class="button">Volver a Estados</a>
+        <p class="redirect-text">
+            Serás redirigido automáticamente en <span id="countdown" class="countdown">5</span> segundos...
+        </p>
+    </main>
+    `;
+
+    ctx.response.body = renderPage({
+        title: "Reporte Enviado",
+        bodyContent,
+        styles: ['/css/thank-you.css'],
+        scripts: ['/js/thank-you.js']
     });
 } 

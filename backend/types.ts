@@ -1,10 +1,26 @@
 export interface Review {
     id: string;
     bank: string;
-    rating: string;
+    rating: number;
     comment: string;
     date: string;
     categories: string[];
+    subRatings?: {
+        facilidadDeUso: number;
+        accesibilidad: number;
+        estabilidad: number;
+        precio: number;
+        serviciosAlUsuario: number;
+    };
+}
+
+export interface ProblemReport {
+    id: string;
+    bank: string;
+    problemType: string;
+    description: string;
+    date: string;
+    status: 'recibido' | 'en_progreso' | 'resuelto';
 }
 
 export interface BankInfo {

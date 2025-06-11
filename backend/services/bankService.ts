@@ -22,7 +22,7 @@ async function checkBankStatus(bankConfig: BankConfig): Promise<BankInfo> {
             url: url,
             responseTime: `${responseTimeMs}ms`,
             statusCode: response.status,
-            statusText: response.ok ? "ACTIVE" : `INACTIVE (Code: ${response.status})`,
+            statusText: response.ok ? "Operativo" : `Inactivo (Código: ${response.status})`,
             state: response.ok ? "active" : "inactive",
             icon: icon || "https://via.placeholder.com/100x50?text=Bank" // Fallback icon
         };
@@ -39,7 +39,7 @@ async function checkBankStatus(bankConfig: BankConfig): Promise<BankInfo> {
             url: url,
             responseTime: "N/A",
             statusCode: 0,
-            statusText: `INACTIVE (Error: ${errorMessage})`,
+            statusText: `Inactivo (Error: ${errorMessage})`,
             state: "inactive",
             icon: icon || "https://via.placeholder.com/100x50?text=Bank" // Fallback icon
         };

@@ -48,32 +48,39 @@
     margin: 1rem 0; /* Reduced margin */
 }
 
-.stars {
+.star-rating .stars {
     display: flex;
+    justify-content: center;
     gap: 0.5rem;
 }
 
-.star {
-    font-size: 2rem;
+.star-rating .star {
+    font-size: 2.5rem;
     color: #ddd; /* Default star color */
     cursor: pointer;
     transition: color 0.3s;
+    align-items: center;
+    margin-bottom: 1rem;
 }
 
-.star i {
+.star-rating i {
     transition: color 0.3s; /* Ensure icon color transitions smoothly */
 }
 
-.star:hover i,
-.star.active i {
+.star-rating .star:hover i,
+.star-rating .star.active i {
     color: var(--color-star);
 }
 
+.star-rating .star i,
+.star-rating-small .star i {
+    pointer-events: none; /* Arreglar el hover sobre el ícono */
+}
+
 .rating-text {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--color-text);
     margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
 }
 
 /* Category tags */
@@ -119,6 +126,51 @@
     font-weight: 500;
 }
 
+/* Contenedor de calificaciones detalladas */
+.sub-ratings-container {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.sub-ratings-title {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.sub-rating-group {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.star-rating-small .stars {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.star-rating-small .star {
+    font-size: 1.5rem; /* Estrellas más pequeñas */
+    color: #ccc;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.star-rating-small .stars:hover .star,
+.star-rating-small .stars .star:hover,
+.star-rating-small .stars .star:hover ~ .star {
+    color: var(--color-star);
+}
+
+.star-rating input[type="radio"]:checked ~ .star,
+.star-rating-small input[type="radio"]:checked ~ .star {
+    color: var(--color-star);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     /* Inherits base responsive styles */
@@ -133,5 +185,10 @@
 
     .buttons-container {
         flex-direction: column;
+    }
+
+    .evaluation-card {
+        flex-direction: column;
+        align-items: flex-start;
     }
 } 

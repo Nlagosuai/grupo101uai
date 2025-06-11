@@ -1,155 +1,165 @@
 [
   {
-    "id": "c44ca474-77e3-46e8-848f-0494130e5521",
+    "id": "3ef1f0ec-e1cd-4ea9-ac61-c076a29e99c3",
     "bank": "Banco de Chile",
-    "rating": "4",
-    "comment": "es muy lento este banco!",
-    "date": "4/28/2025, 5:18:53 PM",
+    "rating": 5,
+    "comment": "",
+    "date": "6/11/2025, 3:37:39 PM",
     "categories": [
-      "slow"
-    ]
+      "Otro"
+    ],
+    "subRatings": {
+      "facilidadDeUso": 3,
+      "accesibilidad": 3,
+      "estabilidad": 5,
+      "precio": 1,
+      "serviciosAlUsuario": 5
+    }
   },
   {
-    "id": "cbb03331-e526-448f-8fa9-f71fb9a07622",
-    "bank": "BCI",
-    "rating": "4",
-    "comment": "f",
-    "date": "4/28/2025, 4:02:27 PM",
-    "categories": [
-      "slow"
-    ]
-  },
-  {
-    "id": "f82dccb0-4689-47cd-8389-c29aef592f15",
-    "bank": "BCI",
-    "rating": "4",
-    "comment": "f",
-    "date": "4/28/2025, 4:01:45 PM",
-    "categories": [
-      "slow"
-    ]
-  },
-  {
-    "id": "81e4a2d9-c3f3-406b-8f47-6cb9be60d8cf",
-    "bank": "BCI",
-    "rating": "3",
-    "comment": "f",
-    "date": "4/28/2025, 3:50:59 PM",
-    "categories": [
-      "error"
-    ]
-  },
-  {
-    "id": "0ae80d23-bfef-45c0-801d-68a8718adeaa",
-    "bank": "BCI",
-    "rating": "3",
-    "comment": "f",
-    "date": "4/28/2025, 3:50:57 PM",
-    "categories": [
-      "error"
-    ]
-  },
-  {
-    "id": "199da929-dc29-47f2-82e6-8a23c1aa4dc2",
-    "bank": "BCI",
-    "rating": "5",
-    "comment": "vb",
-    "date": "4/28/2025, 3:50:04 PM",
-    "categories": [
-      "error"
-    ]
-  },
-  {
-    "id": "8cbb80fa-52fe-4b4f-9d9f-200b5b7c55ec",
-    "bank": "BCI",
-    "rating": "5",
-    "comment": "test",
-    "date": "4/28/2025, 3:48:08 PM",
-    "categories": [
-      "slow"
-    ]
-  },
-  {
-    "id": "1e6f365e-b78d-4c92-962b-58150c7fda2e",
-    "bank": "BCI",
-    "rating": "5",
-    "comment": "test",
-    "date": "4/28/2025, 3:48:00 PM",
-    "categories": [
-      "slow"
-    ]
-  },
-  {
-    "id": "c7d32a6e-562d-46f7-bb32-370964aecc08",
-    "bank": "BCI",
-    "rating": "4",
-    "comment": "funciona perfe",
-    "date": "4/28/2025, 3:46:07 PM",
-    "categories": [
-      "slow"
-    ]
-  },
-  {
+    "id": "8b7ee396-088a-40ec-9c75-f754bc521c96",
     "bank": "Banco Falabella",
-    "rating": "4",
-    "comment": "perfectoo",
+    "rating": 1,
+    "comment": "",
+    "date": "6/11/2025, 3:37:03 PM",
     "categories": [
-      "other"
+      "Otro"
     ],
-    "date": "4/28/2025, 3:32:21 PM"
+    "subRatings": {
+      "facilidadDeUso": 1,
+      "accesibilidad": 1,
+      "estabilidad": 1,
+      "precio": 1,
+      "serviciosAlUsuario": 1
+    }
   },
   {
-    "bank": "Banco de Chile",
-    "rating": "3",
-    "comment": "banco!",
+    "id": "ed49019f-c614-4218-90f8-28be81eebefb",
+    "bank": "Banco Falabella",
+    "rating": 5,
+    "comment": "",
+    "date": "6/11/2025, 3:36:46 PM",
     "categories": [
-      "other"
+      "Otro"
     ],
-    "date": "4/28/2025, 3:30:09 PM"
+    "subRatings": {
+      "facilidadDeUso": 4,
+      "accesibilidad": 3,
+      "estabilidad": 2,
+      "precio": 2,
+      "serviciosAlUsuario": 1
+    }
   },
   {
-    "bank": "Banco de Chile",
-    "rating": "1",
-    "comment": "buenisimo",
-    "categories": [
-      "other"
-    ],
-    "date": "4/28/2025, 3:28:40 PM"
-  },
-  {
-    "bank": "Banco Estado",
-    "rating": "3",
-    "comment": "v",
-    "categories": [
-      "other"
-    ],
-    "date": "4/27/2025, 9:30:56 PM"
-  },
-  {
+    "id": "13add402-fa95-45bd-ad3e-de240ace30eb",
     "bank": "BCI",
-    "rating": "2",
-    "comment": "muy lento!!",
+    "rating": 4,
+    "comment": "",
+    "date": "6/11/2025, 1:16:59 PM",
     "categories": [
-      "slow"
+      "Otro"
     ],
-    "date": "4/27/2025, 9:27:01 PM"
+    "subRatings": {
+      "facilidadDeUso": 2,
+      "accesibilidad": 5,
+      "estabilidad": 3,
+      "precio": 2,
+      "serviciosAlUsuario": 3
+    }
   },
   {
-    "bank": "Banco de Chile",
-    "rating": "2",
-    "comment": "siempre me cuest mucho ingresar a este banco",
+    "id": "dbc74a94-3f2a-4062-8ecc-1e34de7c80b7",
+    "bank": "Scotiabank",
+    "rating": 5,
+    "comment": "",
+    "date": "6/11/2025, 1:09:56 PM",
     "categories": [
-      "access"
+      "Otro"
     ],
-    "date": "4/27/2025, 9:25:24 PM"
+    "subRatings": {
+      "facilidadDeUso": 5,
+      "accesibilidad": 2,
+      "estabilidad": 4,
+      "precio": 4,
+      "serviciosAlUsuario": 4
+    }
   },
   {
-    "bank": "Banco de Chile",
-    "rating": "3",
-    "comment": "odio este banco",
+    "id": "c7913dc0-61ee-4624-a592-68a2c25b5048",
+    "bank": "BCI",
+    "rating": 4,
+    "comment": " ",
+    "date": "6/11/2025, 1:06:15 PM",
     "categories": [
-      "other"
+      "Otro"
     ],
-    "date": "4/22/2025, 3:01:37 PM"
+    "subRatings": {
+      "facilidadDeUso": 3,
+      "accesibilidad": 5,
+      "estabilidad": 3,
+      "precio": 5,
+      "serviciosAlUsuario": 5
+    }
+  },
+  {
+    "id": "ad94616a-0967-4d9e-811e-25821f28ef6e",
+    "bank": "BCI",
+    "rating": 3,
+    "comment": " ",
+    "date": "6/11/2025, 1:05:42 PM",
+    "categories": [
+      "Otro"
+    ],
+    "subRatings": {
+      "facilidadDeUso": 5,
+      "accesibilidad": 3,
+      "estabilidad": 3,
+      "precio": 5,
+      "serviciosAlUsuario": 4
+    }
+  },
+  {
+    "id": "28ecb982-43c5-4080-bd61-b73fc13614a3",
+    "bank": "Banco Itaú",
+    "rating": 2.5,
+    "comment": "x",
+    "date": "6/11/2025, 12:59:04 PM",
+    "categories": [
+      "Otro"
+    ]
+  },
+  {
+    "id": "52ae4645-28dd-4bac-8ca7-0c9f0133acf3",
+    "bank": "Banco Estado",
+    "rating": 3,
+    "comment": " ",
+    "date": "6/11/2025, 12:51:31 PM",
+    "categories": [
+      "Otro"
+    ],
+    "subRatings": {
+      "facilidadDeUso": 2,
+      "accesibilidad": 2,
+      "estabilidad": 2,
+      "precio": 2,
+      "serviciosAlUsuario": 5
+    }
+  },
+  {
+    "id": "45ee52aa-e37e-4616-a7e6-69d04fb48b38",
+    "bank": "BCI",
+    "rating": 3,
+    "comment": "tg",
+    "date": "6/11/2025, 12:46:54 PM",
+    "categories": [
+      "Otro"
+    ],
+    "subRatings": {
+      "facilidadDeUso": 4,
+      "accesibilidad": 3,
+      "estabilidad": 5,
+      "precio": 3,
+      "serviciosAlUsuario": 4
+    }
   }
 ]

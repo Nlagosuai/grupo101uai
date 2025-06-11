@@ -1,85 +1,77 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const starsContainer = document.querySelector('.star-rating .stars');
-    const starLabels = starsContainer ? Array.from(starsContainer.querySelectorAll('.star')) : [];
-    const ratingTextElement = document.querySelector('.rating-text');
-    const ratingRadioInputs = starsContainer ? Array.from(starsContainer.querySelectorAll('input[type="radio"]')) : [];
-    const categoryTagsContainer = document.querySelector('.category-tags');
-    const categoryTagLabels = categoryTagsContainer ? Array.from(categoryTagsContainer.querySelectorAll('.category-tag')) : [];
+    const ratingContainers = document.querySelectorAll('.star-rating, .star-rating-small');
 
-    let currentSelectedRating = 0;
+    ratingContainers.forEach(container => {
+        const stars = [...container.querySelectorAll('.star')];
+        const ratingInput = container.querySelector('.rating-value');
 
-    // --- Star Rating Logic ---
-
-    const updateStarRatingVisuals = (rating) => {
-        starLabels.forEach(starLabel => {
-            const starRatingValue = parseInt(starLabel.dataset.rating || '0');
-            if (starRatingValue <= rating) {
-                starLabel.classList.add('active');
-            } else {
-                starLabel.classList.remove('active');
-            }
-        });
-        if (ratingTextElement) {
-            ratingTextElement.textContent = rating > 0 ? `Calificación: ${rating} estrella${rating > 1 ? 's' : ''}` : 'Selecciona una calificación';
-        }
-    };
-
-    starLabels.forEach(starLabel => {
-        starLabel.addEventListener('mouseover', () => {
-            const hoverRatingValue = parseInt(starLabel.dataset.rating || '0');
-            updateStarRatingVisuals(hoverRatingValue);
+        // Mouseover event for hover effect
+        stars.forEach(star => {
+            star.addEventListener('mouseover', () => {
+                const hoverRating = parseInt(star.dataset.rating);
+                updateStarsVisual(stars, hoverRating, false); // false = don't show half stars on hover
+            });
         });
 
-        starLabel.addEventListener('mouseout', () => {
-            // Restore visual to the actual selected rating
-            updateStarRatingVisuals(currentSelectedRating);
+        // Mouseout event to restore the selected state
+        container.addEventListener('mouseout', () => {
+            const currentRating = parseFloat(ratingInput.value) || 0;
+            updateStarsVisual(stars, currentRating, true); // true = show half stars if they exist
         });
 
-        starLabel.addEventListener('click', () => {
-            currentSelectedRating = parseInt(starLabel.dataset.rating || '0');
-            // Find the corresponding radio button and check it
-            const correspondingRadioInput = ratingRadioInputs.find(input => parseInt(input.value) === currentSelectedRating);
-            if (correspondingRadioInput) {
-                correspondingRadioInput.checked = true;
-            }
-            updateStarRatingVisuals(currentSelectedRating); // Update visual permanently on click
+        // Click event for selection
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                const clickedRating = parseInt(star.dataset.rating);
+                const currentRating = parseFloat(ratingInput.value) || 0;
+                let newRating;
+
+                // If clicking the same star that represents the current integer value, subtract 0.5
+                if (currentRating === clickedRating) {
+                    newRating = clickedRating - 0.5;
+                } else {
+                    newRating = clickedRating;
+                }
+                
+                ratingInput.value = newRating;
+                updateStarsVisual(stars, newRating, true);
+            });
         });
     });
 
-    // Initial state check (if a rating was already selected, e.g., server-side error redisplay)
-    const initiallyCheckedRadio = ratingRadioInputs.find(input => input.checked);
-    if (initiallyCheckedRadio) {
-        currentSelectedRating = parseInt(initiallyCheckedRadio.value);
-        updateStarRatingVisuals(currentSelectedRating);
+    function updateStarsVisual(starElements, rating, allowHalf) {
+        starElements.forEach(star => {
+            const starValue = parseInt(star.dataset.rating);
+            const icon = star.querySelector('i');
+
+            if (starValue <= rating) {
+                icon.className = 'fas fa-star'; // Full star
+                icon.style.color = 'var(--color-star)';
+            } else if (allowHalf && starValue - 0.5 === rating) {
+                icon.className = 'fas fa-star-half-alt'; // Half star
+                icon.style.color = 'var(--color-star)';
+            } else {
+                icon.className = 'far fa-star'; // Empty star (outline)
+                icon.style.color = '#ccc'; // Color para estrellas vacías
+            }
+        });
     }
 
-    // --- Category Tag Logic ---
-
-    categoryTagLabels.forEach(label => {
-        const checkboxId = label.getAttribute('for');
-        const checkboxInput = checkboxId ? document.getElementById(checkboxId) : null;
-
-        if (checkboxInput) {
-            // Sync label style with initial checkbox state
-            if (checkboxInput.checked) {
-                label.classList.add('active');
+    // Form submission validation
+    const evaluationForm = document.getElementById('evaluationForm');
+    if (evaluationForm) {
+        evaluationForm.addEventListener('submit', (e) => {
+            const mainRatingInput = document.querySelector('.star-rating .rating-value');
+            if (!mainRatingInput || parseFloat(mainRatingInput.value) === 0) {
+                e.preventDefault();
+                alert('Por favor, proporciona una calificación general (la principal).');
+                return;
             }
-
-            // Toggle style on click
-            label.addEventListener('click', () => {
-                // The click on the label inherently toggles the checkbox state
-                // We just need to sync the visual style *after* the state changes
-                // Use setTimeout to allow the browser to process the click and state change first
-                setTimeout(() => {
-                    if (checkboxInput.checked) {
-                        label.classList.add('active');
-                    } else {
-                        label.classList.remove('active');
-                    }
-                }, 0);
-            });
-        }
-    });
-
-    
+            const submitButton = evaluationForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Enviando...';
+            }
+        });
+    }
 }); 

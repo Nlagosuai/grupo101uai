@@ -17,16 +17,13 @@ export function renderNavbar(): string {
             <div class="nav-links">
                 <a href="/">Inicio</a>
                 <a href="/status">Estados</a>
-                <a href="/statistics">Estadísticas</a>
-                <a href="/reviews">Reseñas</a>
                 <a href="/leaderboard">Leaderboard</a>
                 <a href="/benefits">Beneficios</a>
-                <a href="/report">Reportar</a>
+                <a href="/summary">Resumen</a>
                 <a href="/logout" class="logout-link">Cerrar Sesión</a>
             </div>
         </div>
     </nav>
-    <script src="/js/navbar.js" defer></script>
     `;
 }
 
