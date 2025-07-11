@@ -1,5 +1,13 @@
 [
   {
+    "id": "ef5243c7-8f83-4d53-b723-f062dd848226",
+    "bank": "BCI",
+    "problemType": "disponibilidad",
+    "description": "dad",
+    "date": "2025-07-11T16:46:15.465Z",
+    "status": "recibido"
+  },
+  {
     "id": "13d238b6-f72e-4298-a844-244964a36889",
     "bank": "BCI",
     "problemType": "facilidad_de_desuscripcion",

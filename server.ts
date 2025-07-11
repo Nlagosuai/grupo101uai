@@ -9,9 +9,14 @@ import pageRouter from "./backend/routes/pageRoutes.ts";
 
 const app = new Application();
 const port = 8082;
-// cd C:\Nicolas\Vscode codes\sprint9
+// encontrar archivo en carpeta:
+// cd C:\Nicolas\Vscode codes\sprint10
+// correr archivo en web local:
 // deno run --allow-net --allow-write --allow-read --allow-import server.ts
-
+// hacer test de coverage:
+// deno test --coverage=./coverage --allow-write
+// visualizar coverage:
+// deno coverage ./coverage
 
 // 1. Cargar datos iniciales
 console.log("Cargando reseñas...");
