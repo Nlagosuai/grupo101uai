@@ -60,6 +60,8 @@ function assignCategoriesToReviews(reviewsData: any[]): Review[] {
     });
 }
 
+export { assignCategoriesToReviews };
+
 /**
  * Guarda las reseñas en el archivo JSON.
  */
@@ -359,4 +361,9 @@ export function getLeaderboardData(sortBy: string = 'averageRating'): {
         ...bankData,
         rank: index + 1,
     }));
+}
+
+// Solo para pruebas unitarias
+export function __setReviewsForTest(newReviews: Review[]) {
+  reviews = newReviews;
 } 

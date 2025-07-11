@@ -1,0 +1,11 @@
+{
+  "scriptId": "322",
+  "url": "file:///C:/Nicolas/Vscode%20codes/sprint10/backend/config.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 863, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}
